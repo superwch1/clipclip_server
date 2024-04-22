@@ -1,0 +1,120 @@
+const WebSocket = require('ws')
+const http = require('http')
+const { setPersistence, setupWSConnection } = require('./websocket/y-websocket/utils.cjs');
+const { MongodbPersistence } = require('y-mongodb-provider');
+const Y = require('yjs');
+
+const FigurePost = require('./models/figure');
+const YjsPost = require('./models/yjs');
+
+const Host = 'localhost';
+const Port = '1234';
+const Mongodb_Uri = 'mongodb://localhost:27017/personal_database';
+const Url = 'http://localhost';
+
+async function main () {
+
+  const server = http.createServer();
+
+  // configuration for y-websocket and y-mongodb-provider, websocket for figures
+  // foundation is created with y-websocket then add y-mongodb-provider for database management
+  const wssYjs = new WebSocket.Server({ noServer: true })
+  wssYjs.on('connection', setupWSConnection)
+
+  // configuration for figure websocket
+  const { setupFigureConnection } = require('./websocket/figuresWebsocket/utils');
+  const wssFigure = new WebSocket.Server({ noServer: true })
+  wssFigure.on('connection', setupFigureConnection);
+
+  const mdb = new MongodbPersistence(Mongodb_Uri, {
+    flushSize: 400,
+    multipleCollections: false,
+  });
+
+  setPersistence({
+    bindState: async (docName, ydoc) => {
+      // This listen to granular document updates and store them in the database
+      const persistedYdoc = await mdb.getYDoc(docName);
+      const newUpdates = Y.encodeStateAsUpdate(ydoc);
+      mdb.storeUpdate(docName, newUpdates);
+      Y.applyUpdate(ydoc, Y.encodeStateAsUpdate(persistedYdoc));
+      ydoc.on('update', async (update) => {
+        mdb.storeUpdate(docName, update);
+      });
+    },
+
+    // This is called when all connections to the document are closed.
+    writeState: async (docName, ydoc) => {
+      // flush document by merging recrods
+      await mdb.flushDocument(docName);
+
+      // there will be 2 documents left in yjs-writing after using figuresWebSocket with deleteMany (unknown reason) 
+      // it is better to delete all documents not linked to figures after all connections are closed
+      var figure = await FigurePost.findById(docName);
+      if (!figure) {
+        await YjsPost.deleteMany({docName: docName});
+      }
+    },
+  });
+
+
+  // handle the WebSocket upgrade process manually
+  server.on('upgrade', (request, socket, head) => {
+    const pathname = new URL(request.url, Url).pathname;
+    console.log(pathname);
+
+    if (pathname === '/figure') {
+      wssFigure.handleUpgrade(request, socket, head, /** @param {any} ws */ ws => {
+        wssFigure.emit('connection', ws, request)
+      })
+    }
+
+    else {
+      // pathname will be /figure_66247ef3b6e77a95ee5f55cc something like that
+      // Call `ws.HandleUpgrade` *after* you checked whether the client has access
+      // See https://github.com/websockets/ws#client-authentication
+      wssYjs.handleUpgrade(request, socket, head, /** @param {any} ws */ ws => {
+        wssYjs.emit('connection', ws, request)
+      })
+    }
+
+    // socket.destroy();
+  })
+  // end of configuration for y-websocket and y-mongodb-provider, websocket for figures
+
+
+
+  // configruation for express server
+  const express = require('express')
+  const app = express()
+
+  const cors = require('cors');
+  app.use(cors());
+
+  const fileUploaded = require('express-fileupload');
+  app.use(fileUploaded());
+
+  const path = require('path');
+  global.appDirectory = path.resolve(__dirname);
+
+  app.use(express.json());
+  
+  app.use((req, res, next) => {
+    req.wssFigure = wssFigure;
+    next();
+  });
+
+  const mongoose = require('mongoose')
+  await mongoose.connect(Mongodb_Uri)
+
+  const canvasRouter = require('./controllers/canvas')
+  app.use('', canvasRouter)
+
+  server.on('request', app);
+
+  server.listen(Port, Host, () => {
+    console.log(`running at '${Host}' on port ${Port}`)
+  })
+}
+
+main().then()
