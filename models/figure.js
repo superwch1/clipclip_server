@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const Config = require('../config')
 
 const Schema = mongoose.Schema;
 const FigureSchema = new Schema({
@@ -11,18 +12,18 @@ const FigureSchema = new Schema({
   type: {
     type: String,
     requried: true,
-    enum: ['preview', 'editor', 'image'],
+    enum: Config.figureType,
   },
   width: {
     type: Number,
-    min: 50,
-    max: 1500,
+    min: Config.figureMinWidth,
+    max: Config.figureMaxWidth,
     requried: true
   },
   height: {
     type: Number,
-    min: 50,
-    max: 1500,
+    min: Config.figureMinHeight,
+    max: Config.figureMaxHeight,
     requried: true
   },
   x: {
@@ -35,7 +36,7 @@ const FigureSchema = new Schema({
   },
   backgroundColor : {
     type: String,
-    default: "#FFFFFF",
+    default: "rgba(0,0,0,1)",
     // required: true - it will crash when receiving an empty string
   },
   url : {
@@ -46,8 +47,8 @@ const FigureSchema = new Schema({
   zIndex : {
     type: Number,
     default: 1,
-    min: 0,
-    max: 20,
+    min: Config.minZIndex,
+    max: Config.maxZIndex,
     requried: true
   }
 });

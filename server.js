@@ -3,14 +3,11 @@ const http = require('http')
 const { setPersistence, setupWSConnection } = require('./websocket/y-websocket/utils.cjs');
 const { MongodbPersistence } = require('y-mongodb-provider');
 const Y = require('yjs');
+const Config = require('./config');
 
 const FigurePost = require('./models/figure');
 const YjsPost = require('./models/yjs');
 
-const Host = 'localhost';
-const Port = '1234';
-const Mongodb_Uri = 'mongodb://localhost:27017/personal_database';
-const Url = 'http://localhost';
 
 async function main () {
 
@@ -22,11 +19,11 @@ async function main () {
   wssYjs.on('connection', setupWSConnection)
 
   // configuration for figure websocket
-  const { setupFigureConnection } = require('./websocket/figuresWebsocket/utils');
+  const { FiguresWebSocket } = require('./websocket/figuresWebsocket/utils');
   const wssFigure = new WebSocket.Server({ noServer: true })
-  wssFigure.on('connection', setupFigureConnection);
+  wssFigure.on('connection', FiguresWebSocket.setupFigureConnection);
 
-  const mdb = new MongodbPersistence(Mongodb_Uri, {
+  const mdb = new MongodbPersistence(Config.mongodb_Uri, {
     flushSize: 400,
     multipleCollections: false,
   });
@@ -60,10 +57,8 @@ async function main () {
 
   // handle the WebSocket upgrade process manually
   server.on('upgrade', (request, socket, head) => {
-    const pathname = new URL(request.url, Url).pathname;
-    console.log(pathname);
 
-    if (pathname === '/figure') {
+    if (request.url === '/figure') {
       wssFigure.handleUpgrade(request, socket, head, /** @param {any} ws */ ws => {
         wssFigure.emit('connection', ws, request)
       })
@@ -98,22 +93,17 @@ async function main () {
   global.appDirectory = path.resolve(__dirname);
 
   app.use(express.json());
-  
-  app.use((req, res, next) => {
-    req.wssFigure = wssFigure;
-    next();
-  });
 
   const mongoose = require('mongoose')
-  await mongoose.connect(Mongodb_Uri)
+  await mongoose.connect(Config.mongodb_Uri)
 
   const canvasRouter = require('./controllers/canvas')
   app.use('', canvasRouter)
 
   server.on('request', app);
 
-  server.listen(Port, Host, () => {
-    console.log(`running at '${Host}' on port ${Port}`)
+  server.listen(Config.port, () => {
+    console.log(`running on port ${Config.port}`)
   })
 }
 
