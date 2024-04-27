@@ -6,6 +6,10 @@ const path = require('path');
 const cheerio = require('cheerio');
 const axios = require('axios');
 
+router.get('/', (req, res) => {
+  res.sendFile(path.resolve(appDirectory, 'index.html'));
+});
+
 // https://jaybarnes33.hashnode.dev/generating-link-previews-with-react-and-nodejs
 router.get("/preview", async (req, res) => {
   try {

@@ -60,16 +60,16 @@ async function main () {
 
     if (request.url === '/figure') {
       wssFigure.handleUpgrade(request, socket, head, /** @param {any} ws */ ws => {
-        wssFigure.emit('connection', ws, request)
+        wssFigure.emit('connection', ws, request);
       })
     }
 
     else {
-      // pathname will be /figure_66247ef3b6e77a95ee5f55cc something like that
+      // pathname will be similar to /figure_66247ef3b6e77a95ee5f55cc
       // Call `ws.HandleUpgrade` *after* you checked whether the client has access
       // See https://github.com/websockets/ws#client-authentication
       wssYjs.handleUpgrade(request, socket, head, /** @param {any} ws */ ws => {
-        wssYjs.emit('connection', ws, request)
+        wssYjs.emit('connection', ws, request);
       })
     }
 
@@ -81,10 +81,12 @@ async function main () {
 
   // configruation for express server
   const express = require('express')
-  const app = express()
+  const app = express();
 
   const cors = require('cors');
   app.use(cors());
+
+  app.use(express.static('public')); //get the static file from public directory for html files
 
   const fileUploaded = require('express-fileupload');
   app.use(fileUploaded());
@@ -94,17 +96,20 @@ async function main () {
 
   app.use(express.json());
 
-  const mongoose = require('mongoose')
-  await mongoose.connect(Config.mongodb_Uri)
+  const mongoose = require('mongoose');
+  await mongoose.connect(Config.mongodb_Uri);
 
-  const canvasRouter = require('./controllers/canvas')
-  app.use('', canvasRouter)
+  const canvasRouter = require('./controllers/canvas');
+  app.use('', canvasRouter);
 
   server.on('request', app);
+  // end of configuration for express server
+
+
 
   server.listen(Config.port, () => {
     console.log(`running on port ${Config.port}`)
-  })
+  });
 }
 
 main().then()

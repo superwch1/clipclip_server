@@ -9,14 +9,20 @@ class FiguresWebSocket {
   static setupFigureConnection(ws) {
     // (this) is referred to the WebSocketServer not FiguresWebSocket so it cannot be used here
     FiguresWebSocket.clients.add(ws);
-    ws.on('message', async (data) => FiguresWebSocket.handleMessage(data));
+    ws.on('message', async (data) => FiguresWebSocket.handleMessage(data, ws));
     ws.on('close', () => FiguresWebSocket.clients.delete(ws));
   }
 
-  static async handleMessage(data) {
+  static async handleMessage(data, ws) {
     try {
+      // send back the pong after receiving a ping from client
+      const type = new TextDecoder().decode(data);
+      if (type === 'ping') {
+        ws.send(JSON.stringify({ type: 'pong' }));
+        return;
+      }
+
       const message = JSON.parse(data);
-      
       switch(message.action) {
         case 'move':
           await FiguresWebSocket.moveFigure(message);
@@ -238,6 +244,7 @@ class FiguresWebSocket {
     }
     catch {}
   }
+
 }
 
 
