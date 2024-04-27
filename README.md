@@ -7,8 +7,9 @@ nodejs deployment
 5. add an application pool called iisnode that use of LocalService
 6. add a new website and link the directory to nodejs folder
 7. copy the webconfig setting from https://tomasz.janczuk.org/2011/08/hosting-express-nodejs-applications-in.html
-8. copy all the files from nodejs to the destinated folder
-9. start the server and wish for Good Luck~ (https://github.com/Azure/iisnode)
+8. add disable websocket line in webconfig if iis has installed websocket (https://tomasz.janczuk.org/2012/11/how-to-use-websockets-with-nodejs-apps.html)
+9. copy all the files from nodejs to the destinated folder
+10. start the server and wish for Good Luck~ (https://github.com/Azure/iisnode)
 
 # Switch Development between Production
 1. modify the value of mongodb_Uri in config.js if needed
