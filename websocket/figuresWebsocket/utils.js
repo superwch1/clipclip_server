@@ -1,7 +1,12 @@
 const FigurePost = require('../../models/figure');
+const PreviewInfoPost = require('../../models/previewInfo');
 const sharp = require('sharp');
 const Config = require('../../config');
-var fs = require('fs');
+const path = require('path');
+const fs = require('fs');
+const cheerio = require('cheerio');
+const axios = require('axios');
+const mongoose = require('mongoose');
 
 class FiguresWebSocket {
   static clients = new Set();
@@ -187,6 +192,9 @@ class FiguresWebSocket {
           // server will all documents in yjs-writing when those connection is lost
           // the procedure of clearing will be handled in server.js
         }
+        else if (figure.type === 'preview') {
+          await PreviewInfoPost.deleteOne({figureId: message.id});
+        }
   
         this.clients.forEach((client) => {
           client.send(JSON.stringify({action: "delete", figure: figure}));
@@ -197,23 +205,103 @@ class FiguresWebSocket {
   }
 
 
-  static async createFigure (figure, image) {
+  static async createEditorFigure (figure) {
     try {
+      var figure = new FigurePost({
+        type: figure.type,
+        width: figure.width,
+        height: figure.height,
+        x: figure.x,
+        y: figure.y,
+        backgroundColor: figure.backgroundColor,
+        url: figure.url,
+        zIndex: figure.zIndex
+      });
+
+      if (Config.isInvalidFigure(figure)) {
+        return;
+      }
+      
+      await figure.save();
+    
+      this.clients.forEach((client) => {
+        client.send(JSON.stringify({action: "create", figure: figure}));
+      });
+    }
+    catch {}
+  }
+
+  static async createPreviewFigure (figure) {
+    try {
+      const { data } = await axios.get(figure.url);
+      const $ = cheerio.load(data);
+
+      const getMetaTag = (name) => {
+        return ( $(`meta[name=${name}]`).attr("content") || $(`meta[propety="twitter${name}"]`).attr("content") || 
+          $(`meta[property="og:${name}"]`).attr("content")
+        );
+      };
+
+      var figure = new FigurePost({
+        type: figure.type,
+        width: figure.width,
+        height: figure.height,
+        x: figure.x,
+        y: figure.y,
+        backgroundColor: figure.backgroundColor,
+        url: figure.url,
+        zIndex: figure.zIndex
+      });
+
+      if (Config.isInvalidFigure(figure)) {
+        return;
+      } 
+      await figure.save();
+
+      var previewInfo = new PreviewInfoPost({
+        url: figure.url,
+        title: $("title").first().text(),
+        favicon: $('link[rel="shortcut icon"]').attr("href") || $('link[rel="alternate icon"]').attr("href"),
+        description: getMetaTag("description"),
+        image: getMetaTag("image"),
+        author: getMetaTag("author"), 
+        
+        //since it store as figure_..., it store as string instead of new mongoose.Types.ObjectId(figure._id.replace('figure_', ''))
+        figureId: figure._id 
+      });
+      await previewInfo.save();
+
+    
+      this.clients.forEach((client) => {
+        client.send(JSON.stringify({action: "create", figure: figure}));
+      });
+    }
+    catch (error) { console.log(error)}
+  }
+
+  static async createImageFigure (figure, image) {
+    try {
+      if (image === null) {
+        return;
+      }
+
       var width = figure.width;
       var height = figure.height;
   
-      if (image !== null) {
-        //it will crash if it is not an image
-        var metadata = await sharp(image.data).metadata();
-        var aspect = metadata.width / metadata.height;
-        var height = 200;
-        if (200 * aspect < 200) {
-          width = 200;
-          height = 200 / aspect;
-        }
-        else {
-          width = 200 * aspect;
-        }
+      //it will crash if it is not an image
+      var metadata = await sharp(image.data).metadata();
+      var aspect = metadata.width / metadata.height;
+      var height = 200;
+      if (200 * aspect < 200) {
+        width = 200;
+        height = 200 / aspect;
+      }
+      else {
+        width = 200 * aspect;
+      }
+
+      if (!(metadata.format === 'jpeg' || metadata.format === 'jpg' || metadata.format === 'gif' || metadata.format === 'png' || metadata.format === 'webp')) {
+        return;
       }
   
       var figure = new FigurePost({
@@ -226,18 +314,17 @@ class FiguresWebSocket {
         url: figure.url,
         zIndex: figure.zIndex
       });
-      
+
       if (Config.isInvalidFigure(figure)) {
         return;
       }
+
+      const filePath = path.join(appDirectory, 'images', `${figure._id}.${metadata.format}`);
+      fs.writeFile(filePath, image.data, (err) => {});
+      figure.url = `${figure._id}.${metadata.format}`;
+      
       await figure.save();
-  
-      if (image !== null){ 
-        await sharp(image.data)
-          .jpeg()
-          .toFile(`images/${figure._id}.jpeg`);
-      }
-  
+    
       this.clients.forEach((client) => {
         client.send(JSON.stringify({action: "create", figure: figure}));
       });
