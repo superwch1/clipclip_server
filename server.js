@@ -13,15 +13,19 @@ async function main () {
 
   const server = http.createServer();
 
-  // configuration for y-websocket and y-mongodb-provider, websocket for figures
+  // configuration for y-websocket and y-mongodb-provider, websocket for figures and cursors
   // foundation is created with y-websocket then add y-mongodb-provider for database management
   const wssYjs = new WebSocket.Server({ noServer: true })
   wssYjs.on('connection', setupWSConnection)
 
   // configuration for figure websocket
-  const { FiguresWebSocket } = require('./websocket/figuresWebsocket/utils');
+  const { FiguresWebSocket } = require('./websocket/figuresWebSocket');
   const wssFigure = new WebSocket.Server({ noServer: true })
   wssFigure.on('connection', FiguresWebSocket.setupFigureConnection);
+
+  const { CursorsWebSocket } = require('./websocket/cursorsWebSocket');
+  const wssCursor = new WebSocket.Server({ noServer: true })
+  wssCursor.on('connection', CursorsWebSocket.setupCursorConnection);
 
   const mdb = new MongodbPersistence(Config.mongodb_Uri, {
     flushSize: 400,
@@ -46,7 +50,7 @@ async function main () {
       await mdb.flushDocument(docName);
 
       // there will be 2 documents left in yjs-writing after using figuresWebSocket with deleteMany (unknown reason) 
-      // it is better to delete all documents not linked to figures after all connections are closed
+      // after all connections are closed, remaining documents will be delete when it is not linked to figures 
       var figure = await FigurePost.findById(docName);
       if (!figure) {
         await YjsPost.deleteMany({docName: docName});
@@ -64,8 +68,14 @@ async function main () {
       })
     }
 
+    else if (request.url.includes("/cursor")) {
+      wssCursor.handleUpgrade(request, socket, head, /** @param {any} ws */ ws => {
+        wssCursor.emit('connection', ws, request);
+      })
+    }
+
     else {
-      // pathname will be similar to /figure_66247ef3b6e77a95ee5f55cc
+      // pathname similar to /figure_66247ef3b6e77a95ee5f55cc
       // Call `ws.HandleUpgrade` *after* you checked whether the client has access
       // See https://github.com/websockets/ws#client-authentication
       wssYjs.handleUpgrade(request, socket, head, /** @param {any} ws */ ws => {
@@ -75,7 +85,7 @@ async function main () {
 
     // socket.destroy();
   })
-  // end of configuration for y-websocket and y-mongodb-provider, websocket for figures
+  // end of configuration for y-websocket and y-mongodb-provider, websocket for figures and cursors
 
 
 
@@ -109,6 +119,9 @@ async function main () {
 
   server.listen(Config.port, () => {
     console.log(`running on port ${Config.port}`)
+
+    // broadcast cursor location continuously
+    CursorsWebSocket.startBroadcastCursorLocation();
   });
 }
 

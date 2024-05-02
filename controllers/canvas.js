@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const FigurePost = require('../models/figure');
 const PreviewInfoPost = require('../models/previewInfo');
-const { FiguresWebSocket } = require('../websocket/figuresWebsocket/utils');
+const { FiguresWebSocket } = require('../websocket/figuresWebSocket');
 const path = require('path');
 
 router.get('/', (req, res) => {
@@ -68,8 +68,7 @@ router.post('/preview', async (req, res) => {
     await FiguresWebSocket.createPreviewFigure(req.body)
     res.sendStatus(200);
   }
-  catch (error) {
-    console.log(error)
+  catch {
     res.sendStatus(500);
   }
 })

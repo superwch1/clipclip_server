@@ -1,12 +1,13 @@
-const FigurePost = require('../../models/figure');
-const PreviewInfoPost = require('../../models/previewInfo');
+const FigurePost = require('../models/figure');
+const YjsPost = require('../models/yjs');
+const PreviewInfoPost = require('../models/previewInfo');
 const sharp = require('sharp');
-const Config = require('../../config');
+const Config = require('../config');
 const path = require('path');
 const fs = require('fs');
 const cheerio = require('cheerio');
 const axios = require('axios');
-const mongoose = require('mongoose');
+
 
 class FiguresWebSocket {
   static clients = new Set();
@@ -48,12 +49,11 @@ class FiguresWebSocket {
           await FiguresWebSocket.copyFigure(message);
           break;
         default:
-          console.log("Unhandled action: ", message.action);
+          console.log(`Unhandled action: ${message.action}`);
       }
     }
     catch {}
   }
-
 
   static async copyFigure(message) {
     try {
@@ -76,13 +76,43 @@ class FiguresWebSocket {
       if (Config.isInvalidFigure(newfigure)) {
         return;
       }
-      await newfigure.save();
-  
-      if (figure.type === 'image') {
-        fs.copyFile(`./images/${figure._id}.jpeg`, `./images/${newfigure._id}.jpeg`, (err) => {
+
+      if (figure.type === 'editor') {
+        var posts = await YjsPost.find({ docName: figure._id});
+        for (var i = 0; i < posts.length; i++) {
+          var newWriting = new YjsPost({
+            action: posts[i].action,
+            clock: posts[i].clock,
+            version: posts[i].version,
+            docName: newfigure._id,
+            value: posts[i].value
+          });
+          await newWriting.save()
+        }
+      }
+      else if (figure.type === 'image') {
+        const format = figure.url.split('.')
+        newfigure.url = `${newfigure._id}.${format[1]}`;
+
+        fs.copyFile(`./images/${figure.url}`, `./images/${newfigure.url}`, (err) => {
           // the error catch function need to be exist or error will occur
         });
       }
+      else if (figure.type === 'preview') {
+        var posts = await PreviewInfoPost.find({ figureId: figure._id});
+        var newPreview = new PreviewInfoPost({
+          url: posts[0].url,
+          title: posts[0].title,
+          favicon: posts[0].favicon,
+          description: posts[0].description,
+          image: posts[0].image,
+          author: posts[0].author, 
+          figureId: newfigure._id 
+        });
+        await newPreview.save()
+      }
+
+      await newfigure.save();
 
       this.clients.forEach((client) => {
         client.send(JSON.stringify({action: "copy", figure: newfigure}));
@@ -184,13 +214,14 @@ class FiguresWebSocket {
         await FigurePost.findByIdAndDelete(figure._id);
   
         if (figure.type === 'image') {
-          fs.unlink(`./images/${figure._id}.jpeg`, (err) => {
+          fs.unlink(`./images/${figure.url}`, (err) => {
             // the error catch function need to be exist or function will throw error automatically
           });
         }
         else if (figure.type === 'editor') {
-          // server will all documents in yjs-writing when those connection is lost
-          // the procedure of clearing will be handled in server.js
+          // server will delete the remaining 2 documents in yjs-writing when those connection is lost
+          // the procedure of cleaning will be handled in server.js
+          await YjsPost.deleteMany({docName: figure._id});
         }
         else if (figure.type === 'preview') {
           await PreviewInfoPost.deleteOne({figureId: message.id});
@@ -276,7 +307,7 @@ class FiguresWebSocket {
         client.send(JSON.stringify({action: "create", figure: figure}));
       });
     }
-    catch (error) { console.log(error)}
+    catch {}
   }
 
   static async createImageFigure (figure, image) {
@@ -298,6 +329,10 @@ class FiguresWebSocket {
       }
       else {
         width = 200 * aspect;
+      }
+
+      if(metadata.size > Config.imageMaxSize) {
+        return;
       }
 
       if (!(metadata.format === 'jpeg' || metadata.format === 'jpg' || metadata.format === 'gif' || metadata.format === 'png' || metadata.format === 'webp')) {
