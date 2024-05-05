@@ -54,7 +54,7 @@ router.get('/figures', async (req, res) => {
 
 router.post('/editor', async (req, res) => {
   try {
-    await FiguresWebSocket.createEditorFigure(req.body)
+    await FiguresWebSocket.createEditorFigure(req.body, req.body.pastedText)
     res.sendStatus(200);
   }
   catch {

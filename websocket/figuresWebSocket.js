@@ -7,6 +7,7 @@ const path = require('path');
 const fs = require('fs');
 const cheerio = require('cheerio');
 const axios = require('axios');
+const Y = require('yjs');
 
 
 class FiguresWebSocket {
@@ -236,7 +237,7 @@ class FiguresWebSocket {
   }
 
 
-  static async createEditorFigure (figure) {
+  static async createEditorFigure (figure, pastedText) {
     try {
       var figure = new FigurePost({
         type: figure.type,
@@ -252,12 +253,23 @@ class FiguresWebSocket {
       if (Config.isInvalidFigure(figure)) {
         return;
       }
-      
       await figure.save();
-    
+
+      if (pastedText !== "") {
+        const ydoc = await global.mdb.getYDoc(figure._id);
+
+        const yText = ydoc.getText('quill');
+        const format = { size: 'large' };
+        yText.insert(0, pastedText, format);
+        
+        var u8intArray = Y.encodeStateAsUpdate(ydoc);
+        await global.mdb.storeUpdate(figure._id, u8intArray);
+      }
+
+
       this.clients.forEach((client) => {
         client.send(JSON.stringify({action: "create", figure: figure}));
-      });
+      });  
     }
     catch {}
   }

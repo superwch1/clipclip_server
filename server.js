@@ -4,9 +4,9 @@ const { setPersistence, setupWSConnection } = require('./websocket/y-websocket/u
 const { MongodbPersistence } = require('y-mongodb-provider');
 const Y = require('yjs');
 const Config = require('./config');
+const YjsPost = require('./models/yjs');
 
 const FigurePost = require('./models/figure');
-const YjsPost = require('./models/yjs');
 
 
 async function main () {
@@ -104,6 +104,8 @@ async function main () {
   const path = require('path');
   global.appDirectory = path.resolve(__dirname);
 
+  global.mdb = mdb;
+
   app.use(express.json());
 
   const mongoose = require('mongoose');
@@ -111,6 +113,7 @@ async function main () {
 
   const canvasRouter = require('./controllers/canvas');
   app.use('', canvasRouter);
+
 
   server.on('request', app);
   // end of configuration for express server
