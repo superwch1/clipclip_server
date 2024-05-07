@@ -5,7 +5,6 @@ const { MongodbPersistence } = require('y-mongodb-provider');
 const Y = require('yjs');
 const Config = require('./config');
 const YjsPost = require('./models/yjs');
-
 const FigurePost = require('./models/figure');
 
 
@@ -113,7 +112,6 @@ async function main () {
 
   const canvasRouter = require('./controllers/canvas');
   app.use('', canvasRouter);
-
 
   server.on('request', app);
   // end of configuration for express server

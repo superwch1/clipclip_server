@@ -26,6 +26,11 @@ class FigureRepository {
     return createdFigure;
   }
 
+  static async readAllFigures() {
+    var figures = await FigurePost.find();
+    return figures;
+  }
+
   /**
    * @param {*} id 
    * @returns figure properties, null if unsuccessful

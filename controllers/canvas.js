@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const FigurePost = require('../models/figure');
+const FigureRepository = require('../repository/figureRepository.cjs')
 const PreviewInfoPost = require('../models/previewInfo');
 const { FiguresWebSocket } = require('../websocket/figuresWebSocket');
 const path = require('path');
@@ -38,7 +38,7 @@ router.get('/image', (req, res) => {
 
 router.get('/figures', async (req, res) => {
   try {
-    var figures = await FigurePost.find(); 
+    var figures = await FigureRepository.readAllFigures(); 
     if (figures) {
       res.status(200).json(figures);
     }

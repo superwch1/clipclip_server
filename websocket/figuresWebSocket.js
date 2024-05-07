@@ -223,14 +223,14 @@ class FiguresWebSocket {
       }
 
       if (pastedText !== "") {
-        const ydoc = await global.mdb.getYDoc(figure._id);
+        const ydoc = await global.mdb.getYDoc(createdFigure._id);
 
         const yText = ydoc.getText('quill');
         const format = { size: 'large' };
         yText.insert(0, pastedText, format);
         
         var u8intArray = Y.encodeStateAsUpdate(ydoc);
-        await global.mdb.storeUpdate(figure._id, u8intArray);
+        await global.mdb.storeUpdate(createdFigure._id, u8intArray);
       }
 
       this.clients.forEach((client) => {
@@ -269,7 +269,6 @@ class FiguresWebSocket {
         figureId: createdFigure._id 
       });
       await previewInfo.save();
-
     
       this.clients.forEach((client) => {
         client.send(JSON.stringify({action: "create", figure: createdFigure}));
