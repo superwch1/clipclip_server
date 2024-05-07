@@ -6,7 +6,7 @@ const { FiguresWebSocket } = require('../websocket/figuresWebSocket');
 const path = require('path');
 
 router.get('/', (req, res) => {
-  res.sendFile(path.resolve(appDirectory, 'index.html'));
+  res.sendFile(path.resolve(global.appDirectory, 'views/index.html'));
 });
 
 // https://jaybarnes33.hashnode.dev/generating-link-previews-with-react-and-nodejs

@@ -1,8 +1,8 @@
-const FigurePost = require('../models/figure');
 const YjsPost = require('../models/yjs');
 const PreviewInfoPost = require('../models/previewInfo');
 const sharp = require('sharp');
 const Config = require('../config');
+const FigureRepository = require('../repository/figureRepository.cjs')
 const path = require('path');
 const fs = require('fs');
 const cheerio = require('cheerio');
@@ -58,23 +58,14 @@ class FiguresWebSocket {
 
   static async copyFigure(message) {
     try {
-      var figure = await FigurePost.findById(message.id);
-      if (!figure) {
+      var figure = await FigureRepository.readFigure(message.id);
+      if (figure == null) {
         return;
       }
-  
-      var newfigure = new FigurePost({
-        type: figure.type,
-        width: figure.width,
-        height: figure.height,
-        x: figure.x + figure.width + 100,
-        y: figure.y,
-        backgroundColor: figure.backgroundColor,
-        url: figure.url,
-        zIndex: figure.zIndex
-      });
-  
-      if (Config.isInvalidFigure(newfigure)) {
+       
+      figure.x = figure.x + figure.width + 100;
+      var createdFigure = await FigureRepository.createFigure(figure);
+      if (createdFigure === null) {
         return;
       }
 
@@ -85,7 +76,7 @@ class FiguresWebSocket {
             action: posts[i].action,
             clock: posts[i].clock,
             version: posts[i].version,
-            docName: newfigure._id,
+            docName: createdFigure._id,
             value: posts[i].value
           });
           await newWriting.save()
@@ -93,11 +84,23 @@ class FiguresWebSocket {
       }
       else if (figure.type === 'image') {
         const format = figure.url.split('.')
-        newfigure.url = `${newfigure._id}.${format[1]}`;
+        createdFigure = await FigureRepository.updateFigureUrl(createdFigure._id, `${createdFigure._id}.${format[1]}`);
+        if (createdFigure === null) {
+          return;
+        }
 
-        fs.copyFile(`./images/${figure.url}`, `./images/${newfigure.url}`, (err) => {
+        fs.copyFile(`./images/${figure.url}`, `./images/${createdFigure.url}`, async (err) => {
           // the error catch function need to be exist or error will occur
+          if (err !== null) {
+            await FigureRepository.deleteFigure(createdFigure._id);
+            createdFigure = null;
+          }
         });
+        
+        // stop sending websocket to all user when it has error in saving image 
+        if (createdFigure === null) {
+          return;
+        }
       }
       else if (figure.type === 'preview') {
         var posts = await PreviewInfoPost.find({ figureId: figure._id});
@@ -108,15 +111,13 @@ class FiguresWebSocket {
           description: posts[0].description,
           image: posts[0].image,
           author: posts[0].author, 
-          figureId: newfigure._id 
+          figureId: createdFigure._id 
         });
         await newPreview.save()
       }
 
-      await newfigure.save();
-
       this.clients.forEach((client) => {
-        client.send(JSON.stringify({action: "copy", figure: newfigure}));
+        client.send(JSON.stringify({action: "copy", figure: createdFigure}));
       });
     }
     catch {}
@@ -125,22 +126,15 @@ class FiguresWebSocket {
   
   static async moveFigure(message) {
     try {
-      var figure = await FigurePost.findById(message.id);
-      if (figure) {
-        figure.width = message.width;
-        figure.height = message.height;
-        figure.x = message.x;
-        figure.y = message.y;
-  
-        if (Config.isInvalidFigureSizeAndPosition(figure)) {
-          return;
-        }
-        await figure.save();
-  
-        this.clients.forEach((client) => {
-          client.send(JSON.stringify({action: "update", figure: figure}));
-        });
+      // only id, width, height, x and y is needed inside the message 
+      var updatedFigure = await FigureRepository.updateFigureSizeAndPosition(message);
+      if (updatedFigure === null) {
+        return;
       }
+     
+      this.clients.forEach((client) => {
+        client.send(JSON.stringify({action: "update", figure: updatedFigure}));
+      });
     }
     catch {}
   }
@@ -148,20 +142,14 @@ class FiguresWebSocket {
   
   static async layerUpFigure(message) {
     try {
-      var figure = await FigurePost.findById(message.id);
-      if (figure) {
-        var newValue = figure.zIndex + 1;
-        if (newValue > Config.maxZIndex) {
-          return;
-        }
-    
-        figure.zIndex = newValue;
-        await figure.save();
-    
-        this.clients.forEach((client) => {
-          client.send(JSON.stringify({action: "update", figure: figure}));
-        });
+      var updatedFigure = await FigureRepository.layerUpFigure(message.id);
+      if (updatedFigure === null) {
+        return;
       }
+
+      this.clients.forEach((client) => {
+        client.send(JSON.stringify({action: "update", figure: updatedFigure}));
+      });
     }
     catch {}
   }
@@ -169,20 +157,14 @@ class FiguresWebSocket {
   
   static async layerDownFigure(message) {
     try {
-      var figure = await FigurePost.findById(message.id);
-      if (figure) {
-        var newValue = figure.zIndex - 1;
-        if (newValue < Config.minZIndex) {
-          return;
-        }
-  
-        figure.zIndex = newValue;
-        await figure.save();
-  
-        this.clients.forEach((client) => {
-          client.send(JSON.stringify({action: "update", figure: figure}));
-        });
+      var updatedFigure = await FigureRepository.layerDownFigure(message.id);
+      if (updatedFigure === null) {
+        return;
       }
+
+      this.clients.forEach((client) => {
+        client.send(JSON.stringify({action: "update", figure: updatedFigure}));
+      });
     }
     catch {}
   }
@@ -190,19 +172,14 @@ class FiguresWebSocket {
 
   static async backgroundColorFigure(message) {
     try {
-      var figure = await FigurePost.findById(message.id);
-      if (figure) {
-        figure.backgroundColor = message.backgroundColor;
-  
-        if(Config.isInvalidBackgroundColor(figure)){
-          return;
-        }
-        await figure.save();
-  
-        this.clients.forEach((client) => {
-          client.send(JSON.stringify({action: "update", figure: figure}));
-        });
+      var updatedFigure = await FigureRepository.updateFigureBackgroundColor(message.id, message.backgroundColor)
+      if (updatedFigure === null) {
+        return;
       }
+
+      this.clients.forEach((client) => {
+        client.send(JSON.stringify({action: "update", figure: figure}));
+      });
     }
     catch {}
   }
@@ -210,13 +187,14 @@ class FiguresWebSocket {
   
   static async deleteFigure(message) {
     try {
-      var figure = await FigurePost.findById(message.id);
+      var figure = await FigureRepository.readFigure(message.id);
       if (figure) {
-        await FigurePost.findByIdAndDelete(figure._id);
+        await FigureRepository.deleteFigure(figure._id);
   
         if (figure.type === 'image') {
           fs.unlink(`./images/${figure.url}`, (err) => {
             // the error catch function need to be exist or function will throw error automatically
+            // it automatically return null - need to be checked
           });
         }
         else if (figure.type === 'editor') {
@@ -239,21 +217,10 @@ class FiguresWebSocket {
 
   static async createEditorFigure (figure, pastedText) {
     try {
-      var figure = new FigurePost({
-        type: figure.type,
-        width: figure.width,
-        height: figure.height,
-        x: figure.x,
-        y: figure.y,
-        backgroundColor: figure.backgroundColor,
-        url: figure.url,
-        zIndex: figure.zIndex
-      });
-
-      if (Config.isInvalidFigure(figure)) {
+      var createdFigure = await FigureRepository.createFigure(figure);
+      if (createdFigure === null) {
         return;
       }
-      await figure.save();
 
       if (pastedText !== "") {
         const ydoc = await global.mdb.getYDoc(figure._id);
@@ -266,14 +233,14 @@ class FiguresWebSocket {
         await global.mdb.storeUpdate(figure._id, u8intArray);
       }
 
-
       this.clients.forEach((client) => {
-        client.send(JSON.stringify({action: "create", figure: figure}));
+        client.send(JSON.stringify({action: "create", figure: createdFigure}));
       });  
     }
     catch {}
   }
 
+  
   static async createPreviewFigure (figure) {
     try {
       const { data } = await axios.get(figure.url);
@@ -285,21 +252,10 @@ class FiguresWebSocket {
         );
       };
 
-      var figure = new FigurePost({
-        type: figure.type,
-        width: figure.width,
-        height: figure.height,
-        x: figure.x,
-        y: figure.y,
-        backgroundColor: figure.backgroundColor,
-        url: figure.url,
-        zIndex: figure.zIndex
-      });
-
-      if (Config.isInvalidFigure(figure)) {
+      var createdFigure = await FigureRepository.createFigure(figure);
+      if (createdFigure === null) {
         return;
-      } 
-      await figure.save();
+      }
 
       var previewInfo = new PreviewInfoPost({
         url: figure.url,
@@ -310,75 +266,72 @@ class FiguresWebSocket {
         author: getMetaTag("author"), 
         
         //since it store as figure_..., it store as string instead of new mongoose.Types.ObjectId(figure._id.replace('figure_', ''))
-        figureId: figure._id 
+        figureId: createdFigure._id 
       });
       await previewInfo.save();
 
     
       this.clients.forEach((client) => {
-        client.send(JSON.stringify({action: "create", figure: figure}));
+        client.send(JSON.stringify({action: "create", figure: createdFigure}));
       });
     }
     catch {}
   }
+
 
   static async createImageFigure (figure, image) {
     try {
       if (image === null) {
         return;
       }
-
-      var width = figure.width;
-      var height = figure.height;
   
       //it will crash if it is not an image
       var metadata = await sharp(image.data).metadata();
-      var aspect = metadata.width / metadata.height;
-      var height = 200;
-      if (200 * aspect < 200) {
-        width = 200;
-        height = 200 / aspect;
-      }
-      else {
-        width = 200 * aspect;
-      }
-
       if(metadata.size > Config.imageMaxSize) {
         return;
       }
+
+      var aspect = metadata.width / metadata.height;
+      figure.height = 200;
+      if (200 * aspect < 200) {
+        figure.width = 200;
+        figure.height = 200 / aspect;
+      }
+      else {
+        figure.width = 200 * aspect;
+      }
+
 
       if (!(metadata.format === 'jpeg' || metadata.format === 'jpg' || metadata.format === 'gif' || metadata.format === 'png' || metadata.format === 'webp')) {
         return;
       }
   
-      var figure = new FigurePost({
-        type: figure.type,
-        width: width,
-        height: height,
-        x: figure.x,
-        y: figure.y,
-        backgroundColor: figure.backgroundColor,
-        url: figure.url,
-        zIndex: figure.zIndex
-      });
-
-      if (Config.isInvalidFigure(figure)) {
+      var createdFigure = await FigureRepository.createFigure(figure);
+      if (createdFigure === null) {
         return;
       }
 
-      const filePath = path.join(appDirectory, 'images', `${figure._id}.${metadata.format}`);
-      fs.writeFile(filePath, image.data, (err) => {});
-      figure.url = `${figure._id}.${metadata.format}`;
-      
-      await figure.save();
+      const filePath = path.join(appDirectory, 'images', `${createdFigure._id}.${metadata.format}`);
+      fs.writeFile(filePath, image.data, (err) => {
+        if (err !== null) {
+          createdFigure === null;
+        }
+      });
+      if (createdFigure === null) {
+        return;
+      }
+
+      var updatedFigure = await FigureRepository.updateFigureUrl(createdFigure._id, `${createdFigure._id}.${metadata.format}`);
+      if (updatedFigure === null) {
+        return;
+      }
     
       this.clients.forEach((client) => {
-        client.send(JSON.stringify({action: "create", figure: figure}));
+        client.send(JSON.stringify({action: "create", figure: updatedFigure}));
       });
     }
     catch {}
   }
-
 }
 
 

@@ -96,13 +96,13 @@ async function main () {
   const cors = require('cors');
   app.use(cors());
 
-  app.use(express.static('public')); //get the static file from public directory for html files
-
   const fileUploaded = require('express-fileupload');
   app.use(fileUploaded());
 
   const path = require('path');
   global.appDirectory = path.resolve(__dirname);
+
+  app.use(express.static('views/public')); //get the static file from public directory for html files
 
   global.mdb = mdb;
 
