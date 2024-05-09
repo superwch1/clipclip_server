@@ -31,7 +31,7 @@ class CursorsWebSocket {
   
 
   static startBroadcastCursorLocation() {
-    CursorsWebSocket.intervalId = setInterval(() => {
+    setInterval(() => {
       const cursorsArray = Array.from(this.cursors, ([key, value]) => ({ key, value }));
 
       this.clients.forEach((client) => {

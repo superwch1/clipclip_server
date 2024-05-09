@@ -30,11 +30,14 @@ class FigureRepository {
   
   /** 
    * read all figures
-   * @returns array of figures with their properties
+   * @returns array of figures with their properties, empty array [] with no figures are found
    */
   static async readAllFigures() {
     var figures = await FigurePost.find();
-    return figures;
+    if (figures.length > 0) {
+      return figures;
+    }
+    return null;
   }
 
   

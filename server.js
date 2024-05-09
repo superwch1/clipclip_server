@@ -4,8 +4,8 @@ const { setPersistence, setupWSConnection } = require('./websocket/y-websocket/u
 const { MongodbPersistence } = require('y-mongodb-provider');
 const Y = require('yjs');
 const Config = require('./config');
-const YjsPost = require('./models/yjs');
 const FigurePost = require('./models/figure');
+const YjsRepository = require('./repository/yjsRepository.cjs');
 
 
 async function main () {
@@ -52,7 +52,7 @@ async function main () {
       // after all connections are closed, remaining documents will be delete when it is not linked to figures 
       var figure = await FigurePost.findById(docName);
       if (!figure) {
-        await YjsPost.deleteMany({docName: docName});
+        await YjsRepository.deleteAllWritings(docName);
       }
     },
   });

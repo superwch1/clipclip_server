@@ -1,13 +1,9 @@
-const YjsPost = require('../models/yjs');
-const PreviewInfoPost = require('../models/previewInfo');
-const sharp = require('sharp');
 const Config = require('../config');
+const YjsRepository = require('../repository/yjsRepository.cjs')
 const FigureRepository = require('../repository/figureRepository.cjs')
+const PreviewInfoRepository = require('../repository/previewInfoRepository.cjs')
 const path = require('path');
 const fs = require('fs');
-const cheerio = require('cheerio');
-const axios = require('axios');
-const Y = require('yjs');
 
 
 class FiguresWebSocket {
@@ -70,17 +66,7 @@ class FiguresWebSocket {
       }
 
       if (figure.type === 'editor') {
-        var posts = await YjsPost.find({ docName: figure._id});
-        for (var i = 0; i < posts.length; i++) {
-          var newWriting = new YjsPost({
-            action: posts[i].action,
-            clock: posts[i].clock,
-            version: posts[i].version,
-            docName: createdFigure._id,
-            value: posts[i].value
-          });
-          await newWriting.save()
-        }
+        await YjsRepository.copyAllWritings(figure._id, createdFigure._id);
       }
       else if (figure.type === 'image') {
         const format = figure.url.split('.')
@@ -103,22 +89,10 @@ class FiguresWebSocket {
         }
       }
       else if (figure.type === 'preview') {
-        var posts = await PreviewInfoPost.find({ figureId: figure._id});
-        var newPreview = new PreviewInfoPost({
-          url: posts[0].url,
-          title: posts[0].title,
-          favicon: posts[0].favicon,
-          description: posts[0].description,
-          image: posts[0].image,
-          author: posts[0].author, 
-          figureId: createdFigure._id 
-        });
-        await newPreview.save()
+        await PreviewInfoRepository.copyPreviewInfo(figure._id, createdFigure._id);
       }
 
-      this.clients.forEach((client) => {
-        client.send(JSON.stringify({action: "copy", figure: createdFigure}));
-      });
+      this.sendMessage("copy", createdFigure);
     }
     catch {}
   }
@@ -132,9 +106,7 @@ class FiguresWebSocket {
         return;
       }
      
-      this.clients.forEach((client) => {
-        client.send(JSON.stringify({action: "update", figure: updatedFigure}));
-      });
+      this.sendMessage("update", updatedFigure);
     }
     catch {}
   }
@@ -147,9 +119,7 @@ class FiguresWebSocket {
         return;
       }
 
-      this.clients.forEach((client) => {
-        client.send(JSON.stringify({action: "update", figure: updatedFigure}));
-      });
+      this.sendMessage("update", updatedFigure);
     }
     catch {}
   }
@@ -162,9 +132,7 @@ class FiguresWebSocket {
         return;
       }
 
-      this.clients.forEach((client) => {
-        client.send(JSON.stringify({action: "update", figure: updatedFigure}));
-      });
+      this.sendMessage("update", updatedFigure);
     }
     catch {}
   }
@@ -177,9 +145,7 @@ class FiguresWebSocket {
         return;
       }
 
-      this.clients.forEach((client) => {
-        client.send(JSON.stringify({action: "update", figure: figure}));
-      });
+      this.sendMessage("update", updatedFigure);
     }
     catch {}
   }
@@ -200,79 +166,14 @@ class FiguresWebSocket {
         else if (figure.type === 'editor') {
           // server will delete the remaining 2 documents in yjs-writing when those connection is lost
           // the procedure of cleaning will be handled in server.js
-          await YjsPost.deleteMany({docName: figure._id});
+          await YjsRepository.deleteAllWritings(figure._id);
         }
         else if (figure.type === 'preview') {
-          await PreviewInfoPost.deleteOne({figureId: message.id});
+          await PreviewInfoRepository.deletePreviewInfoWithFigureId(figure._id);
         }
   
-        this.clients.forEach((client) => {
-          client.send(JSON.stringify({action: "delete", figure: figure}));
-        });
+        this.sendMessage("delete", figure);
       }
-    }
-    catch {}
-  }
-
-
-  static async createEditorFigure (figure, pastedText) {
-    try {
-      var createdFigure = await FigureRepository.createFigure(figure);
-      if (createdFigure === null) {
-        return;
-      }
-
-      if (pastedText !== "") {
-        const ydoc = await global.mdb.getYDoc(createdFigure._id);
-
-        const yText = ydoc.getText('quill');
-        const format = { size: 'large' };
-        yText.insert(0, pastedText, format);
-        
-        var u8intArray = Y.encodeStateAsUpdate(ydoc);
-        await global.mdb.storeUpdate(createdFigure._id, u8intArray);
-      }
-
-      this.clients.forEach((client) => {
-        client.send(JSON.stringify({action: "create", figure: createdFigure}));
-      });  
-    }
-    catch {}
-  }
-
-  
-  static async createPreviewFigure (figure) {
-    try {
-      const { data } = await axios.get(figure.url);
-      const $ = cheerio.load(data);
-
-      const getMetaTag = (name) => {
-        return ( $(`meta[name=${name}]`).attr("content") || $(`meta[propety="twitter${name}"]`).attr("content") || 
-          $(`meta[property="og:${name}"]`).attr("content")
-        );
-      };
-
-      var createdFigure = await FigureRepository.createFigure(figure);
-      if (createdFigure === null) {
-        return;
-      }
-
-      var previewInfo = new PreviewInfoPost({
-        url: figure.url,
-        title: $("title").first().text(),
-        favicon: $('link[rel="shortcut icon"]').attr("href") || $('link[rel="alternate icon"]').attr("href"),
-        description: getMetaTag("description"),
-        image: getMetaTag("image"),
-        author: getMetaTag("author"), 
-        
-        //since it store as figure_..., it store as string instead of new mongoose.Types.ObjectId(figure._id.replace('figure_', ''))
-        figureId: createdFigure._id 
-      });
-      await previewInfo.save();
-    
-      this.clients.forEach((client) => {
-        client.send(JSON.stringify({action: "create", figure: createdFigure}));
-      });
     }
     catch {}
   }
@@ -325,11 +226,16 @@ class FiguresWebSocket {
         return;
       }
     
-      this.clients.forEach((client) => {
-        client.send(JSON.stringify({action: "create", figure: updatedFigure}));
-      });
+      this.sendMessage("create", updatedFigure);
     }
     catch {}
+  }
+
+
+  static sendMessage(action, figure) {
+    this.clients.forEach((client) => {
+      client.send(JSON.stringify({action: action, figure: figure}));
+    });
   }
 }
 

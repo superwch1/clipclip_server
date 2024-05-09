@@ -15,7 +15,7 @@ const YjsSchema = new Schema({
     type: String
   },
   value: {
-    type: Buffer
+    type: Buffer.from([])
   },
 });
 var YjsPost = mongoose.model('Yjs-writings', YjsSchema);
