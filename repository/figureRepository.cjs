@@ -26,20 +26,34 @@ class FigureRepository {
     return createdFigure;
   }
 
+  
+  /** read all figures
+   * @returns array of figures with their properties
+   */
   static async readAllFigures() {
     var figures = await FigurePost.find();
     return figures;
   }
 
-  /**
+  
+  /** read figure with id
    * @param {*} id 
    * @returns figure properties, null if unsuccessful
    */
   static async readFigure(id) {
     var figure = await FigurePost.findById(id);
-    return figure;
+    if (figure) {
+      return figure;
+    }
+    return null;
   }
 
+  
+  /** update url of the figure with id
+   * @param {*} id 
+   * @param {*} url updated url of figure
+   * @returns figure properties, null if unsuccessful
+   */
   static async updateFigureUrl(id, url) {
     var updatedFigure = await FigurePost.findById(id);
     if (updatedFigure) {
@@ -74,9 +88,15 @@ class FigureRepository {
     return null;
   }
 
+  
+  /** update the background color of figure
+   * @param {*} id 
+   * @param {*} backgroundColor updated background color of figure
+   * @returns figure properties, null if unsuccessful
+   */
   static async updateFigureBackgroundColor(id, backgroundColor) {
     if(this.isInvalidBackgroundColor(backgroundColor)){
-      return;
+      return null;
     }
 
     var updatedFigure = await FigurePost.findById(id);
@@ -89,7 +109,11 @@ class FigureRepository {
     return null;
   }
 
-
+  
+  /** update the background color of figure
+   * @param {*} id 
+   * @param {*} backgroundColor updated background color of figure
+   */
   static async deleteFigure(id) {
     await FigurePost.findByIdAndDelete(id);
   }
@@ -114,6 +138,7 @@ class FigureRepository {
     return null;
   }
 
+  
   /** decrease zIndex by 1
    * @param {*} id 
    * @returns figure properties, null if unsuccessful
@@ -133,7 +158,11 @@ class FigureRepository {
     return null;
   }
 
-
+  
+  /** check is the properties of figure valid or not
+   * @param {*} figure type, x, y, width, height, backgorundColor and zIndex
+   * @returns true, false if invalid
+   */
   static isInvalidFigure(figure) {
     if (this.isInvalidSizeAndPosition(figure)) {
       return true;
@@ -155,6 +184,10 @@ class FigureRepository {
   }
 
 
+  /** check is the size and position of figure valid or not
+   * @param {*} figure x, y, width and height
+   * @returns true, false if invalid
+   */
   static isInvalidSizeAndPosition(figure) {
     if (figure.x < 0 || figure.y < 0) {
       return true;
@@ -172,7 +205,11 @@ class FigureRepository {
     return false;
   }
 
-
+  
+  /** check is the background color of figure valid or not
+   * @param {*} figure background color
+   * @returns true, false if invalid
+   */
   static isInvalidBackgroundColor(figure) {
     // rgba(0,0,0,1) to rbga(255,255,255,0);
     // \d{1,2}?\d matches numbers from 0 to 99,  1\d{2} matches numbers from 100 to 199, 
