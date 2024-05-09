@@ -3,9 +3,10 @@ const Config = require('../config');
 
 class FigureRepository {
 
-  /** create figure
+  /** 
+   * create figure
    * @param {*} figure type, width, height, x, y, backgroundColor, url and zIndex
-   * @returns 
+   * @returns figure properties, null if unsuccessful
    */
   static async createFigure(figure) {
     if (this.isInvalidFigure(figure) === true) {
@@ -27,7 +28,8 @@ class FigureRepository {
   }
 
   
-  /** read all figures
+  /** 
+   * read all figures
    * @returns array of figures with their properties
    */
   static async readAllFigures() {
@@ -36,7 +38,8 @@ class FigureRepository {
   }
 
   
-  /** read figure with id
+  /** 
+   * read figure with id
    * @param {*} id 
    * @returns figure properties, null if unsuccessful
    */
@@ -49,7 +52,8 @@ class FigureRepository {
   }
 
   
-  /** update url of the figure with id
+  /** 
+   * update url of the figure with id
    * @param {*} id 
    * @param {*} url updated url of figure
    * @returns figure properties, null if unsuccessful
@@ -66,7 +70,8 @@ class FigureRepository {
   }
 
 
-  /** update the position of figure  
+  /** 
+   * update the position of figure  
    * @param {*} figure id, x, y, width and height
    * @returns figure properties, null if unsuccessful
    */
@@ -89,7 +94,8 @@ class FigureRepository {
   }
 
   
-  /** update the background color of figure
+  /** 
+   * update the background color of figure
    * @param {*} id 
    * @param {*} backgroundColor updated background color of figure
    * @returns figure properties, null if unsuccessful
@@ -110,7 +116,8 @@ class FigureRepository {
   }
 
   
-  /** update the background color of figure
+  /** 
+   * update the background color of figure
    * @param {*} id 
    * @param {*} backgroundColor updated background color of figure
    */
@@ -119,7 +126,8 @@ class FigureRepository {
   }
 
 
-  /** increase the zIndex by 1
+  /** 
+   * increase the zIndex by 1
    * @param {*} id 
    * @returns figure properties, null if unsuccessful
    */
@@ -139,7 +147,8 @@ class FigureRepository {
   }
 
   
-  /** decrease zIndex by 1
+  /** 
+   * decrease zIndex by 1
    * @param {*} id 
    * @returns figure properties, null if unsuccessful
    */
@@ -159,7 +168,8 @@ class FigureRepository {
   }
 
   
-  /** check is the properties of figure valid or not
+  /** 
+   * check is the properties of figure valid or not
    * @param {*} figure type, x, y, width, height, backgorundColor and zIndex
    * @returns true, false if invalid
    */
@@ -184,7 +194,8 @@ class FigureRepository {
   }
 
 
-  /** check is the size and position of figure valid or not
+  /** 
+   * check is the size and position of figure valid or not
    * @param {*} figure x, y, width and height
    * @returns true, false if invalid
    */
@@ -206,7 +217,8 @@ class FigureRepository {
   }
 
   
-  /** check is the background color of figure valid or not
+  /** 
+   * check is the background color of figure valid or not
    * @param {*} figure background color
    * @returns true, false if invalid
    */
