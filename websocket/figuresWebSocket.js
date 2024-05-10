@@ -1,4 +1,3 @@
-const Config = require('../config');
 const YjsRepository = require('../repository/yjsRepository.cjs')
 const FigureRepository = require('../repository/figureRepository.cjs')
 const PreviewInfoRepository = require('../repository/previewInfoRepository.cjs')
@@ -140,7 +139,7 @@ class FiguresWebSocket {
 
   static async backgroundColorFigure(message) {
     try {
-      var updatedFigure = await FigureRepository.updateFigureBackgroundColor(message.id, message.backgroundColor)
+      var updatedFigure = await FigureRepository.updateFigureBackgroundColor(message)
       if (updatedFigure === null) {
         return;
       }

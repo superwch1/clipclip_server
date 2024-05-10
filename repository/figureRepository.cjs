@@ -99,18 +99,17 @@ class FigureRepository {
   
   /** 
    * update the background color of figure
-   * @param {*} id 
-   * @param {*} backgroundColor updated background color of figure
+   * @param {*} figure id and backgroundColor
    * @returns figure properties, null if unsuccessful
    */
-  static async updateFigureBackgroundColor(id, backgroundColor) {
-    if(this.isInvalidBackgroundColor(backgroundColor)){
+  static async updateFigureBackgroundColor(figure) {
+    if(this.isInvalidBackgroundColor(figure)){
       return null;
     }
 
-    var updatedFigure = await FigurePost.findById(id);
+    var updatedFigure = await FigurePost.findById(figure.id);
     if (updatedFigure) {
-      updated.backgroundColor = message.backgroundColor;
+      updatedFigure.backgroundColor = figure.backgroundColor;
 
       await updatedFigure.save();
       return updatedFigure;
