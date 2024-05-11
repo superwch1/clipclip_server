@@ -1,0 +1,67 @@
+running on port \\.\pipe\032d65a1-fdf4-4e04-b6d6-db2cbf0d13b0
+{
+  type: 'image',
+  x: 976.6666666666667,
+  y: 100,
+  width: 266.66666666666663,
+  height: 200,
+  backgroundColor: 'rgba(226,245,240,1)',
+  url: '',
+  zIndex: 5
+}
+{
+  type: 'image',
+  width: 266.66666666666663,
+  height: 200,
+  x: 976.6666666666667,
+  y: 100,
+  backgroundColor: 'rgba(226,245,240,1)',
+  url: '',
+  zIndex: 5,
+  _id: 'figure_663ee278b33293277690c76f',
+  __v: 0
+}
+{
+  type: 'image',
+  x: 441.6666666666667,
+  y: 173.33333333333334,
+  width: 410.2564102564102,
+  height: 200,
+  backgroundColor: 'rgba(226,245,240,1)',
+  url: '',
+  zIndex: 5
+}
+{
+  type: 'image',
+  width: 410.2564102564102,
+  height: 200,
+  x: 441.6666666666667,
+  y: 173.33333333333334,
+  backgroundColor: 'rgba(226,245,240,1)',
+  url: '',
+  zIndex: 5,
+  _id: 'figure_663ee356b33293277690c77b',
+  __v: 0
+}
+{
+  type: 'image',
+  x: 1092.3055555555557,
+  y: 737.6944444444445,
+  width: 266.66666666666663,
+  height: 200,
+  backgroundColor: 'rgba(226,245,240,1)',
+  url: '',
+  zIndex: 5
+}
+{
+  type: 'image',
+  width: 266.66666666666663,
+  height: 200,
+  x: 1092.3055555555557,
+  y: 737.6944444444445,
+  backgroundColor: 'rgba(226,245,240,1)',
+  url: '',
+  zIndex: 5,
+  _id: 'figure_663ee374b33293277690c78b',
+  __v: 0
+}

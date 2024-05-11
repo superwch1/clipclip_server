@@ -130,14 +130,22 @@ router.post('/image', async (req, res) => {
       return;
     }
 
-    var aspect = metadata.width / metadata.height;
-    figure.height = 200;
-    if (200 * aspect < 200) {
-      figure.width = 200;
-      figure.height = 200 / aspect;
+    var aspect = 0;
+    // photo is taken upright and need to reverse the width and height
+    if (metadata.orientation === 6) {
+      aspect = metadata.height / metadata.width
     }
     else {
-      figure.width = 200 * aspect;
+      aspect = metadata.width / metadata.height
+    }
+
+    figure.height = 300;
+    if (300 * aspect < 300) {
+      figure.width = 300;
+      figure.height = 300 / aspect;
+    }
+    else {
+      figure.width = 300 * aspect;
     }
 
 
@@ -145,11 +153,15 @@ router.post('/image', async (req, res) => {
       return;
     }
 
+    console.log(figure);
+
     var createdFigure = await FigureRepository.createFigure(figure);
     if (createdFigure === null) {
       res.sendStatus(500);
       return;
     }
+
+    console.log(createdFigure)
 
     const filePath = path.join(appDirectory, 'images', `${createdFigure._id}.${metadata.format}`);
     fs.writeFile(filePath, image.data, (err) => {

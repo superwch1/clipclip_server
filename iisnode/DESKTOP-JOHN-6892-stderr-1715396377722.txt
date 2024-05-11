@@ -1,0 +1,15 @@
+Application has thrown an uncaught exception and is terminated:
+Error: Cannot find module './repository/yjsRepository.cjs'
+Require stack:
+- C:\Users\wchjo\Desktop\Documents\Programming\Apps\clipclip_server\server.js
+- C:\Program Files\iisnode\interceptor.js
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1142:15)
+    at Module._load (node:internal/modules/cjs/loader:983:27)
+    at Module.require (node:internal/modules/cjs/loader:1230:19)
+    at require (node:internal/modules/helpers:179:18)
+    at Object.<anonymous> (C:\Users\wchjo\Desktop\Documents\Programming\Apps\clipclip_server\server.js:8:23)
+    at Module._compile (node:internal/modules/cjs/loader:1368:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1426:10)
+    at Module.load (node:internal/modules/cjs/loader:1205:32)
+    at Module._load (node:internal/modules/cjs/loader:1021:12)
+    at Module.require (node:internal/modules/cjs/loader:1230:19)

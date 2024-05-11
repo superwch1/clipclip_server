@@ -1,0 +1,45 @@
+running on port \\.\pipe\c5ea99c1-bb44-4730-9310-07c980e4cd11
+{
+  type: 'image',
+  x: 1010.3611111111112,
+  y: 507.13888888888886,
+  width: 300,
+  height: 225,
+  backgroundColor: 'rgba(226,245,240,1)',
+  url: '',
+  zIndex: 5
+}
+{
+  type: 'image',
+  width: 300,
+  height: 225,
+  x: 1010.3611111111112,
+  y: 507.13888888888886,
+  backgroundColor: 'rgba(226,245,240,1)',
+  url: '',
+  zIndex: 5,
+  _id: 'figure_663ee3c32bedc63a28dbc5b4',
+  __v: 0
+}
+{
+  type: 'image',
+  x: 1010.3611111111112,
+  y: 507.13888888888886,
+  width: 300,
+  height: 225,
+  backgroundColor: 'rgba(226,245,240,1)',
+  url: '',
+  zIndex: 5
+}
+{
+  type: 'image',
+  width: 300,
+  height: 225,
+  x: 1010.3611111111112,
+  y: 507.13888888888886,
+  backgroundColor: 'rgba(226,245,240,1)',
+  url: '',
+  zIndex: 5,
+  _id: 'figure_663ee43e2bedc63a28dbc5bd',
+  __v: 0
+}
