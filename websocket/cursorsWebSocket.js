@@ -8,15 +8,20 @@ class CursorsWebSocket {
     // (this) is referred to the WebSocketServer not FiguresWebSocket so it cannot be used here
     const parsedUrl = url.parse(request.url, true);
     const uuid = parsedUrl.query.uuid;
-    
-    CursorsWebSocket.clients.add(ws);
-    CursorsWebSocket.cursors.set(`${uuid}`, { x: 0, y: 0 });
+    const isDesktop = parsedUrl.query.isDesktop; 
+
+    if (isDesktop === "true") {
+      CursorsWebSocket.clients.add(ws);
+      CursorsWebSocket.cursors.set(`${uuid}`, { x: 0, y: 0 });
+    }
 
     ws.on('message', async (data) => CursorsWebSocket.handleMessage(data, ws));
 
     ws.on('close', () => {
-      CursorsWebSocket.clients.delete(ws);
-      CursorsWebSocket.cursors.delete(`${uuid}`);
+      if (isDesktop === "true") {
+        CursorsWebSocket.clients.delete(ws);
+        CursorsWebSocket.cursors.delete(`${uuid}`);
+      }
     });
   }
 
