@@ -37,6 +37,16 @@ router.get('/image', (req, res) => {
   try {
     const imagePath = path.join(appDirectory, 'images', `${req.query.url}`);
     res.status(200).sendFile(imagePath, (error) => {});
+
+    /*
+    const imagePath = path.join(appDirectory, 'images', `${req.query.url}`);
+    const imageBuffer = fs.readFileSync(imagePath);
+    const base64Image = Buffer.from(imageBuffer).toString('base64');
+    const mimeType = mime.lookup(imagePath);
+
+    res.status(200).send(`data:${mimeType};base64,${base64Image}`);
+
+    */
   }
   catch {
     res.sendStatus(500);
@@ -74,13 +84,63 @@ router.post('/editor', async (req, res) => {
       const ydoc = await global.mdb.getYDoc(createdFigure._id);
 
       const yText = ydoc.getText('quill');
-      const format = { size: 'large' };
+      const format = { size: 'small' };
       yText.insert(0, req.body.pastedText, format);
       
       var u8intArray = Y.encodeStateAsUpdate(ydoc);
       await global.mdb.storeUpdate(createdFigure._id, u8intArray);
     }
 
+    FiguresWebSocket.sendMessage("create", createdFigure);
+    res.sendStatus(200);
+  }
+  catch {
+    res.sendStatus(500);
+  }
+})
+
+router.post('/pasteEditor', async (req, res) => {
+  try {
+    var figure = req.body.figure;
+    var createdFigure = await FigureRepository.createFigure(figure);
+
+    if (createdFigure === null) {
+      res.sendStatus(500);
+      return;
+    }
+
+    if (req.body.pastedText !== null) {
+      const ydoc = await global.mdb.getYDoc(createdFigure._id);
+      const quillDelta = req.body.pastedText;
+
+      const yText = ydoc.getText('quill');
+      yText.applyDelta(quillDelta);
+      
+      var u8intArray = Y.encodeStateAsUpdate(ydoc);
+      await global.mdb.storeUpdate(createdFigure._id, u8intArray);
+    }
+
+    FiguresWebSocket.sendMessage("create", createdFigure);
+    res.sendStatus(200);
+  }
+  catch {
+    res.sendStatus(500);
+  }
+})
+
+
+router.post('/pastePreview', async (req, res) => {
+  try {
+    const { data } = await axios.get(req.body.url);
+    const cheerioData = cheerio.load(data);
+
+    var createdFigure = await FigureRepository.createFigure(req.body.figure);
+    if (createdFigure === null) {
+      res.sendStatus(500);
+      return;
+    }
+    await PreviewInfoRepository.createPreviewInfo(createdFigure._id, req.body.url, cheerioData);
+  
     FiguresWebSocket.sendMessage("create", createdFigure);
     res.sendStatus(200);
   }
@@ -115,6 +175,7 @@ router.post('/preview', async (req, res) => {
 
 router.post('/image', async (req, res) => {
   try {
+    // image is in file format
     var image = req.files.image;
     var figure = JSON.parse(req.body.figure);
 
@@ -153,15 +214,11 @@ router.post('/image', async (req, res) => {
       return;
     }
 
-    console.log(figure);
-
     var createdFigure = await FigureRepository.createFigure(figure);
     if (createdFigure === null) {
       res.sendStatus(500);
       return;
     }
-
-    console.log(createdFigure)
 
     const filePath = path.join(appDirectory, 'images', `${createdFigure._id}.${metadata.format}`);
     fs.writeFile(filePath, image.data, (err) => {
@@ -183,8 +240,59 @@ router.post('/image', async (req, res) => {
     FiguresWebSocket.sendMessage("create", updatedFigure);
     res.sendStatus(200);
   }
-  catch (error){
-    console.log(error);
+  catch {
+    res.sendStatus(500);
+  }
+})
+
+
+router.post('/pasteImage', async (req, res) => {
+  try {
+
+    const base64Data = req.body.base64.split(',')[1];
+    var buffer = Buffer.from(base64Data, 'base64');
+    var figure = req.body.figure;
+
+    if (buffer === null) {
+      res.sendStatus(500);
+      return;
+    }
+
+    //it will crash if it is not an image
+    var metadata = await sharp(buffer).metadata();
+    if(metadata.size > Config.imageMaxSize) {
+      res.sendStatus(500);
+      return;
+    }
+
+    if (!(metadata.format === 'jpeg' || metadata.format === 'jpg' || metadata.format === 'gif' || metadata.format === 'png' || metadata.format === 'webp')) {
+      return;
+    }
+
+    var createdFigure = await FigureRepository.createFigure(figure);
+    if (createdFigure === null) {
+      res.sendStatus(500);
+      return;
+    }
+
+    const filePath = path.join(appDirectory, 'images', `${createdFigure._id}.${metadata.format}`);
+    if (metadata.orientation !== 6) {
+      await sharp(buffer).toFile(filePath);
+    }
+    else {
+      await sharp(buffer).rotate(90).toFile(filePath);
+    }
+
+    var updatedFigure = await FigureRepository.updateFigureUrl(createdFigure._id, `${createdFigure._id}.${metadata.format}`);
+    if (updatedFigure === null) {
+      res.sendStatus(500);
+      return;
+    }
+
+    FiguresWebSocket.sendMessage("create", updatedFigure);
+    res.sendStatus(200);
+  }
+  catch {
     res.sendStatus(500);
   }
 })

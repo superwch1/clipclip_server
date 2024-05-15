@@ -105,11 +105,12 @@ async function main () {
 
   global.mdb = mdb;
 
-  app.use(express.json());
+  app.use(express.json({ limit: '50mb' }));
 
   const mongoose = require('mongoose');
   await mongoose.connect(Config.mongodb_Uri);
 
+  
   const canvasRouter = require('./controllers/canvas');
   app.use('', canvasRouter);
 

@@ -11,17 +11,17 @@ class CursorsWebSocket {
     const isDesktop = parsedUrl.query.isDesktop; 
 
     if (isDesktop === "true") {
-      CursorsWebSocket.clients.add(ws);
       CursorsWebSocket.cursors.set(`${uuid}`, { x: 0, y: 0 });
     }
+    CursorsWebSocket.clients.add(ws);
 
     ws.on('message', async (data) => CursorsWebSocket.handleMessage(data, ws));
 
     ws.on('close', () => {
       if (isDesktop === "true") {
-        CursorsWebSocket.clients.delete(ws);
         CursorsWebSocket.cursors.delete(`${uuid}`);
       }
+      CursorsWebSocket.clients.delete(ws);
     });
   }
 

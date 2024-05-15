@@ -16,7 +16,7 @@ class Config {
   static figureMinZIndex = 0;
   static figureMaxZIndex = 20;
 
-  static imageMaxSize = 5000000; 
+  static imageMaxSize = 10000000; 
 }
 
 module.exports = Config;
