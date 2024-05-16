@@ -105,7 +105,7 @@ async function main () {
 
   global.mdb = mdb;
 
-  app.use(express.json({ limit: '50mb' }));
+  app.use(express.json({ limit: '50mb' })); // base64 need large size for uploading images
 
   const mongoose = require('mongoose');
   await mongoose.connect(Config.mongodb_Uri);

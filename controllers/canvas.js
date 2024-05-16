@@ -37,16 +37,6 @@ router.get('/image', (req, res) => {
   try {
     const imagePath = path.join(appDirectory, 'images', `${req.query.url}`);
     res.status(200).sendFile(imagePath, (error) => {});
-
-    /*
-    const imagePath = path.join(appDirectory, 'images', `${req.query.url}`);
-    const imageBuffer = fs.readFileSync(imagePath);
-    const base64Image = Buffer.from(imageBuffer).toString('base64');
-    const mimeType = mime.lookup(imagePath);
-
-    res.status(200).send(`data:${mimeType};base64,${base64Image}`);
-
-    */
   }
   catch {
     res.sendStatus(500);
