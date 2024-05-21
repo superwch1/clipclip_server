@@ -11,6 +11,9 @@ const Y = require('yjs');
 const fs = require('fs');
 const sharp = require('sharp');
 const Config = require('../config');
+const decode = require('heic-decode');
+const convert = require('heic-convert');
+const libheif = require('libheif-js');
 
 
 router.get('/', (req, res) => {
@@ -74,8 +77,7 @@ router.post('/editor', async (req, res) => {
       const ydoc = await global.mdb.getYDoc(createdFigure._id);
 
       const yText = ydoc.getText('quill');
-      const format = { size: 'small' };
-      yText.insert(0, req.body.pastedText, format);
+      yText.insert(0, req.body.pastedText, {});
       
       var u8intArray = Y.encodeStateAsUpdate(ydoc);
       await global.mdb.storeUpdate(createdFigure._id, u8intArray);
@@ -174,7 +176,6 @@ router.post('/image', async (req, res) => {
       return;
     }
 
-    //it will crash if it is not an image
     var metadata = await sharp(image.data).metadata();
     if(metadata.size > Config.imageMaxSize) {
       res.sendStatus(500);
@@ -199,9 +200,14 @@ router.post('/image', async (req, res) => {
       figure.width = 300 * aspect;
     }
 
-
-    if (!(metadata.format === 'jpeg' || metadata.format === 'jpg' || metadata.format === 'gif' || metadata.format === 'png' || metadata.format === 'webp')) {
+    if (!(metadata.format === 'jpeg' || metadata.format === 'jpg' || metadata.format === 'heif' || metadata.format === 'gif' || metadata.format === 'png' || metadata.format === 'webp')) {
       return;
+    }
+
+    // convert the image to jpg format if it is a .heif
+    if (metadata.format === 'heif'){
+      image.data = await convert({ buffer: image.data, format: 'JPEG' });
+      metadata = await sharp(image.data).metadata();
     }
 
     var createdFigure = await FigureRepository.createFigure(figure);
@@ -211,15 +217,7 @@ router.post('/image', async (req, res) => {
     }
 
     const filePath = path.join(appDirectory, 'images', `${createdFigure._id}.${metadata.format}`);
-    fs.writeFile(filePath, image.data, (err) => {
-      if (err !== null) {
-        createdFigure === null;
-      }
-    });
-    if (createdFigure === null) {
-      res.sendStatus(500);
-      return;
-    }
+    await sharp(image.data).toFile(filePath);
 
     var updatedFigure = await FigureRepository.updateFigureUrl(createdFigure._id, `${createdFigure._id}.${metadata.format}`);
     if (updatedFigure === null) {
@@ -248,14 +246,13 @@ router.post('/pasteImage', async (req, res) => {
       return;
     }
 
-    //it will crash if it is not an image
     var metadata = await sharp(buffer).metadata();
     if(metadata.size > Config.imageMaxSize) {
       res.sendStatus(500);
       return;
     }
 
-    if (!(metadata.format === 'jpeg' || metadata.format === 'jpg' || metadata.format === 'gif' || metadata.format === 'png' || metadata.format === 'webp')) {
+    if (!(metadata.format === 'jpeg' || metadata.format === 'jpg' || metadata.format === 'heif' || metadata.format === 'gif' || metadata.format === 'png' || metadata.format === 'webp')) {
       return;
     }
 
