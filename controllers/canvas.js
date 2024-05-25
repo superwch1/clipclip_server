@@ -8,12 +8,10 @@ const path = require('path');
 const cheerio = require('cheerio');
 const axios = require('axios');
 const Y = require('yjs');
-const fs = require('fs');
 const sharp = require('sharp');
 const Config = require('../config');
-const decode = require('heic-decode');
 const convert = require('heic-convert');
-const libheif = require('libheif-js');
+const fs = require('fs');
 
 
 router.get('/', (req, res) => {
@@ -39,7 +37,13 @@ router.get("/preview", async (req, res) => {
 router.get('/image', (req, res) => {
   try {
     const imagePath = path.join(appDirectory, 'images', `${req.query.url}`);
-    res.status(200).sendFile(imagePath, (error) => {});
+    if (fs.existsSync(imagePath)) {
+      res.status(200).sendFile(imagePath, (error) => {});
+    }
+    else {
+      res.sendStatus(404);
+    }
+    
   }
   catch {
     res.sendStatus(500);
@@ -65,48 +69,22 @@ router.get('/figures', async (req, res) => {
 
 router.post('/editor', async (req, res) => {
   try {
-    var figure = req.body;
-
-    var createdFigure = await FigureRepository.createFigure(figure);
+    var createdFigure = await FigureRepository.createFigure(req.body.figure);
     if (createdFigure === null) {
-      res.sendStatus(500);
+      res.status(400).send("Invalid figure properties");
       return;
     }
 
-    if (req.body.pastedText !== "") {
+    if (req.body.plainText !== null || req.body.quillDelta !== null) {
       const ydoc = await global.mdb.getYDoc(createdFigure._id);
-
       const yText = ydoc.getText('quill');
-      yText.insert(0, req.body.pastedText, {});
-      
-      var u8intArray = Y.encodeStateAsUpdate(ydoc);
-      await global.mdb.storeUpdate(createdFigure._id, u8intArray);
-    }
 
-    FiguresWebSocket.sendMessage("create", createdFigure);
-    res.sendStatus(200);
-  }
-  catch {
-    res.sendStatus(500);
-  }
-})
-
-router.post('/pasteEditor', async (req, res) => {
-  try {
-    var figure = req.body.figure;
-    var createdFigure = await FigureRepository.createFigure(figure);
-
-    if (createdFigure === null) {
-      res.sendStatus(500);
-      return;
-    }
-
-    if (req.body.pastedText !== null) {
-      const ydoc = await global.mdb.getYDoc(createdFigure._id);
-      const quillDelta = req.body.pastedText;
-
-      const yText = ydoc.getText('quill');
-      yText.applyDelta(quillDelta);
+      if (req.body.plainText !== null) {
+        yText.insert(0, req.body.plainText, {});
+      }
+      else {
+        yText.applyDelta(req.body.quillDelta);
+      }
       
       var u8intArray = Y.encodeStateAsUpdate(ydoc);
       await global.mdb.storeUpdate(createdFigure._id, u8intArray);
@@ -121,14 +99,14 @@ router.post('/pasteEditor', async (req, res) => {
 })
 
 
-router.post('/pastePreview', async (req, res) => {
+router.post('/preview', async (req, res) => {
   try {
     const { data } = await axios.get(req.body.url);
     const cheerioData = cheerio.load(data);
 
     var createdFigure = await FigureRepository.createFigure(req.body.figure);
     if (createdFigure === null) {
-      res.sendStatus(500);
+      res.status(400).send("Invalid figure properties");
       return;
     }
     await PreviewInfoRepository.createPreviewInfo(createdFigure._id, req.body.url, cheerioData);
@@ -142,147 +120,127 @@ router.post('/pastePreview', async (req, res) => {
 })
 
 
-router.post('/preview', async (req, res) => {
-  try {
-    var figure = req.body;
-
-    const { data } = await axios.get(figure.url);
-    const cheerioData = cheerio.load(data);
-
-    var createdFigure = await FigureRepository.createFigure(figure);
-    if (createdFigure === null) {
-      res.sendStatus(500);
-      return;
-    }
-    await PreviewInfoRepository.createPreviewInfo(createdFigure._id, figure.url, cheerioData);
-  
-    FiguresWebSocket.sendMessage("create", createdFigure);
-    res.sendStatus(200);
-  }
-  catch {
-    res.sendStatus(500);
-  }
-})
-
-
 router.post('/image', async (req, res) => {
   try {
-    // image is in file format
-    var image = req.files.image;
-    var figure = JSON.parse(req.body.figure);
-
-    if (image === null) {
-      res.sendStatus(500);
-      return;
-    }
-
-    var metadata = await sharp(image.data).metadata();
-    if(metadata.size > Config.imageMaxSize) {
-      res.sendStatus(500);
-      return;
-    }
-
-    var aspect = 0;
-    // photo is taken upright and need to reverse the width and height
-    if (metadata.orientation === 6) {
-      aspect = metadata.height / metadata.width
-    }
-    else {
-      aspect = metadata.width / metadata.height
-    }
-
-    figure.height = 300;
-    if (300 * aspect < 300) {
-      figure.width = 300;
-      figure.height = 300 / aspect;
-    }
-    else {
-      figure.width = 300 * aspect;
-    }
-
-    if (!(metadata.format === 'jpeg' || metadata.format === 'jpg' || metadata.format === 'heif' || metadata.format === 'gif' || metadata.format === 'png' || metadata.format === 'webp')) {
-      return;
-    }
-
-    // convert the image to jpg format if it is a .heif
-    if (metadata.format === 'heif'){
-      image.data = await convert({ buffer: image.data, format: 'JPEG' });
-      metadata = await sharp(image.data).metadata();
-    }
-
-    var createdFigure = await FigureRepository.createFigure(figure);
-    if (createdFigure === null) {
-      res.sendStatus(500);
-      return;
-    }
-
-    const filePath = path.join(appDirectory, 'images', `${createdFigure._id}.${metadata.format}`);
-    await sharp(image.data).toFile(filePath);
-
-    var updatedFigure = await FigureRepository.updateFigureUrl(createdFigure._id, `${createdFigure._id}.${metadata.format}`);
-    if (updatedFigure === null) {
-      res.sendStatus(500);
-      return;
-    }
-
-    FiguresWebSocket.sendMessage("create", updatedFigure);
-    res.sendStatus(200);
-  }
-  catch {
-    res.sendStatus(500);
-  }
-})
-
-
-router.post('/pasteImage', async (req, res) => {
-  try {
-
     const base64Data = req.body.base64.split(',')[1];
     var buffer = Buffer.from(base64Data, 'base64');
     var figure = req.body.figure;
 
-    if (buffer === null) {
-      res.sendStatus(500);
-      return;
-    }
-
+    // unsupported media type will throw error
+    // gif is not animaited - https://github.com/lovell/sharp/issues/4092
     var metadata = await sharp(buffer).metadata();
     if(metadata.size > Config.imageMaxSize) {
-      res.sendStatus(500);
+      res.status(400).send("Size of image too large");
       return;
     }
 
-    if (!(metadata.format === 'jpeg' || metadata.format === 'jpg' || metadata.format === 'heif' || metadata.format === 'gif' || metadata.format === 'png' || metadata.format === 'webp')) {
-      return;
+    if (req.body.isDefaultSize === true) {
+      var aspect = 0;
+      // photo is taken upright and need to reverse the width and height
+      if (metadata.orientation === 6) {
+        aspect = metadata.height / metadata.width
+      }
+      else {
+        aspect = metadata.width / metadata.height
+      }
+
+      figure.height = 300;
+      if (300 * aspect < 300) {
+        figure.width = 300;
+        figure.height = 300 / aspect;
+      }
+      else {
+        figure.width = 300 * aspect;
+      }
+    }
+
+    // convert the image to jpg format if it is a .heif
+    if (metadata.format === 'heif'){
+      buffer = await convert({ buffer: buffer, format: 'JPEG' });
+      metadata = await sharp(buffer).metadata();
     }
 
     var createdFigure = await FigureRepository.createFigure(figure);
     if (createdFigure === null) {
-      res.sendStatus(500);
+      res.status(400).send("Invalid figure properties");
       return;
     }
 
     const filePath = path.join(appDirectory, 'images', `${createdFigure._id}.${metadata.format}`);
-    if (metadata.orientation !== 6) {
-      await sharp(buffer).toFile(filePath);
-    }
-    else {
-      await sharp(buffer).rotate(90).toFile(filePath);
-    }
+    await sharp(buffer).toFile(filePath);
 
     var updatedFigure = await FigureRepository.updateFigureUrl(createdFigure._id, `${createdFigure._id}.${metadata.format}`);
     if (updatedFigure === null) {
-      res.sendStatus(500);
+      res.status(400).send("Invalid figure properties");
       return;
     }
 
     FiguresWebSocket.sendMessage("create", updatedFigure);
     res.sendStatus(200);
   }
+  catch { 
+    res.sendStatus(500);
+  }
+});
+
+
+router.put('/positionAndSize', async (req, res) => {
+  try {    
+    // only id, width, height, x and y is needed inside the figure
+    var updatedFigure = await FigureRepository.updateFigureSizeAndPosition(req.body.figure);
+    if (updatedFigure === null) {
+      res.status(400).send("Invalid figure properties");
+      return;
+    }
+    
+    FiguresWebSocket.sendMessage("update", updatedFigure);
+    res.sendStatus(200);
+  }
   catch {
     res.sendStatus(500);
   }
-})
+});
+
+
+router.put('/backgroundColor', async (req, res) => {
+  try {    
+    var updatedFigure = await FigureRepository.updateFigureBackgroundColor(req.body.figure)
+    if (updatedFigure === null) {
+      res.status(400).send("Invalid figure properties");
+      return;
+    }
+
+    FiguresWebSocket.sendMessage("update", updatedFigure);
+    res.sendStatus(200);
+  }
+  catch {
+    res.sendStatus(500);
+  }
+});
+
+
+router.put('/layer', async (req, res) => {
+  try {    
+    var updatedFigure;
+    if (req.body.action === "up"){
+      updatedFigure = await FigureRepository.layerUpFigure(req.body.id);
+    }
+    else if (req.body.action === "down") {
+      updatedFigure = await FigureRepository.layerDownFigure(req.body.id);
+    }
+    
+    if (updatedFigure === null) {
+      res.status(400).send("Invalid figure properties");
+      return;
+    }
+
+    FiguresWebSocket.sendMessage("update", updatedFigure);
+    res.sendStatus(200);
+  }
+  catch {
+    res.sendStatus(500);
+  }
+});
 
 
 module.exports = router;

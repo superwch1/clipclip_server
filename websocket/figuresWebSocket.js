@@ -26,18 +26,6 @@ class FiguresWebSocket {
 
       const message = JSON.parse(data);
       switch(message.action) {
-        case 'move':
-          await FiguresWebSocket.moveFigure(message);
-          break;
-        case 'layerup':
-          await FiguresWebSocket.layerUpFigure(message);
-          break;
-        case 'layerdown':
-          await FiguresWebSocket.layerDownFigure(message);
-          break;
-        case 'backgroundcolor':
-          await FiguresWebSocket.backgroundColorFigure(message);
-          break;
         case 'delete':
           await FiguresWebSocket.deleteFigure(message);
           break;
@@ -94,60 +82,7 @@ class FiguresWebSocket {
       this.sendMessage("copy", createdFigure);
     }
     catch {}
-  }
-  
-  
-  static async moveFigure(message) {
-    try {
-      // only id, width, height, x and y is needed inside the message 
-      var updatedFigure = await FigureRepository.updateFigureSizeAndPosition(message);
-      if (updatedFigure === null) {
-        return;
-      }
-     
-      this.sendMessage("update", updatedFigure);
-    }
-    catch {}
-  }
-  
-  
-  static async layerUpFigure(message) {
-    try {
-      var updatedFigure = await FigureRepository.layerUpFigure(message.id);
-      if (updatedFigure === null) {
-        return;
-      }
-
-      this.sendMessage("update", updatedFigure);
-    }
-    catch {}
-  }
-  
-  
-  static async layerDownFigure(message) {
-    try {
-      var updatedFigure = await FigureRepository.layerDownFigure(message.id);
-      if (updatedFigure === null) {
-        return;
-      }
-
-      this.sendMessage("update", updatedFigure);
-    }
-    catch {}
-  }
-  
-
-  static async backgroundColorFigure(message) {
-    try {
-      var updatedFigure = await FigureRepository.updateFigureBackgroundColor(message)
-      if (updatedFigure === null) {
-        return;
-      }
-
-      this.sendMessage("update", updatedFigure);
-    }
-    catch {}
-  }
+  } 
   
   
   static async deleteFigure(message) {
@@ -176,60 +111,6 @@ class FiguresWebSocket {
     }
     catch {}
   }
-
-
-  static async createImageFigure (figure, image) {
-    try {
-      if (image === null) {
-        return;
-      }
-  
-      //it will crash if it is not an image
-      var metadata = await sharp(image.data).metadata();
-      if(metadata.size > Config.imageMaxSize) {
-        return;
-      }
-
-      var aspect = metadata.width / metadata.height;
-      figure.height = 200;
-      if (200 * aspect < 200) {
-        figure.width = 200;
-        figure.height = 200 / aspect;
-      }
-      else {
-        figure.width = 200 * aspect;
-      }
-
-
-      if (!(metadata.format === 'jpeg' || metadata.format === 'jpg' || metadata.format === 'gif' || metadata.format === 'png' || metadata.format === 'webp')) {
-        return;
-      }
-  
-      var createdFigure = await FigureRepository.createFigure(figure);
-      if (createdFigure === null) {
-        return;
-      }
-
-      const filePath = path.join(appDirectory, 'images', `${createdFigure._id}.${metadata.format}`);
-      fs.writeFile(filePath, image.data, (err) => {
-        if (err !== null) {
-          createdFigure === null;
-        }
-      });
-      if (createdFigure === null) {
-        return;
-      }
-
-      var updatedFigure = await FigureRepository.updateFigureUrl(createdFigure._id, `${createdFigure._id}.${metadata.format}`);
-      if (updatedFigure === null) {
-        return;
-      }
-    
-      this.sendMessage("create", updatedFigure);
-    }
-    catch {}
-  }
-
 
   static sendMessage(action, figure) {
     this.clients.forEach((client) => {
