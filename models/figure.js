@@ -50,6 +50,10 @@ const FigureSchema = new Schema({
     min: Config.minZIndex,
     max: Config.maxZIndex,
     requried: true
+  },
+  isPinned : {
+    type: Boolean,
+    required: true
   }
 });
 var FigurePost = mongoose.model('Figures', FigureSchema);

@@ -3,6 +3,7 @@ const router = express.Router();
 const FigureRepository = require('../repository/figureRepository.cjs')
 const PreviewInfoRepository = require('../repository/previewInfoRepository.cjs')
 const PreviewInfoPost = require('../models/previewInfo');
+const YjsRepository = require('../repository/yjsRepository.cjs');
 const { FiguresWebSocket } = require('../websocket/figuresWebSocket');
 const path = require('path');
 const cheerio = require('cheerio');
@@ -26,7 +27,7 @@ router.get("/preview", async (req, res) => {
       res.status(200).json(previewInfo);
     }
     else {
-      res.sendStatus(404);
+      res.status(404).send("Preview not found");
     }
   } catch (error) {
     res.sendStatus(500);
@@ -41,7 +42,7 @@ router.get('/image', (req, res) => {
       res.status(200).sendFile(imagePath, (error) => {});
     }
     else {
-      res.sendStatus(404);
+      res.status(404).send("Image not found");
     }
     
   }
@@ -104,7 +105,10 @@ router.post('/preview', async (req, res) => {
     const { data } = await axios.get(req.body.url);
     const cheerioData = cheerio.load(data);
 
-    var createdFigure = await FigureRepository.createFigure(req.body.figure);
+    var figure = req.body.figure;
+    figure.url = req.body.url;
+
+    var createdFigure = await FigureRepository.createFigure(figure);
     if (createdFigure === null) {
       res.status(400).send("Invalid figure properties");
       return;
@@ -218,6 +222,22 @@ router.put('/backgroundColor', async (req, res) => {
   }
 });
 
+router.put('/pin', async (req, res) => {
+  try {    
+    var updatedFigure = await FigureRepository.switchPinStatusFigure(req.body.id);
+    if (updatedFigure === null) {
+      res.status(400).send("Invalid figure properties");
+      return;
+    }
+
+    FiguresWebSocket.sendMessage("update", updatedFigure);
+    res.sendStatus(200);
+  }
+  catch {
+    res.sendStatus(500);
+  }
+});
+
 
 router.put('/layer', async (req, res) => {
   try {    
@@ -238,6 +258,93 @@ router.put('/layer', async (req, res) => {
     res.sendStatus(200);
   }
   catch {
+    res.sendStatus(500);
+  }
+});
+
+
+router.post('/copyFigure', async (req, res) => {
+  try {
+    var figure = await FigureRepository.readFigure(req.body.id);
+    if (figure == null) {
+      res.status(400).send("Invalid figure properties");
+      return;
+    }
+     
+    figure.x = figure.x + figure.width + 100;
+    var createdFigure = await FigureRepository.createFigure(figure);
+    if (createdFigure === null) {
+      res.status(400).send("Invalid figure properties");
+      return;
+    }
+
+    if (figure.type === 'editor') {
+      await YjsRepository.copyAllWritings(figure._id, createdFigure._id);
+    }
+    else if (figure.type === 'image') {
+      const format = figure.url.split('.')
+      createdFigure = await FigureRepository.updateFigureUrl(createdFigure._id, `${createdFigure._id}.${format[1]}`);
+      if (createdFigure === null) {
+        res.status(400).send("Invalid figure properties");
+        return;
+      }
+
+      fs.copyFile(`./images/${figure.url}`, `./images/${createdFigure.url}`, async (err) => {
+        // the error catch function need to be exist or error will occur
+        if (err !== null) {
+          await FigureRepository.deleteFigure(createdFigure._id);
+          createdFigure = null;
+        }
+      });
+      
+      // stop sending websocket to all user when it has error in saving image 
+      if (createdFigure === null) {
+        res.status(400).send("Error in saving image");
+        return;
+      }
+    }
+    else if (figure.type === 'preview') {
+      await PreviewInfoRepository.copyPreviewInfo(figure._id, createdFigure._id);
+    }
+
+    FiguresWebSocket.sendMessage("copy", createdFigure);
+    res.sendStatus(200);
+  }
+  catch {
+    res.sendStatus(500);
+  } 
+})
+
+
+router.delete('/figure', async (req, res) => {
+  try {
+    var figure = await FigureRepository.readFigure(req.body.id);
+    if (figure) {
+      await FigureRepository.deleteFigure(figure._id);
+
+      if (figure.type === 'image') {
+        fs.unlink(`./images/${figure.url}`, (err) => {
+          // the error catch function need to be exist or function will throw error automatically
+          // it automatically return null - need to be checked
+        });
+      }
+      else if (figure.type === 'editor') {
+        // server will delete the remaining 2 documents in yjs-writing when those connection is lost
+        // the procedure of cleaning will be handled in server.js
+        await YjsRepository.deleteAllWritings(figure._id);
+      }
+      else if (figure.type === 'preview') {
+        await PreviewInfoRepository.deletePreviewInfoWithFigureId(figure._id);
+      }
+
+      FiguresWebSocket.sendMessage("delete", figure);
+      res.sendStatus(200);
+      return;
+    }
+    res.status(404).send("Figure not found");
+  }
+  catch (error) {
+    console.log(error)
     res.sendStatus(500);
   }
 });

@@ -21,7 +21,8 @@ class FigureRepository {
       y: figure.y,
       backgroundColor: figure.backgroundColor,
       url: figure.url,
-      zIndex: figure.zIndex
+      zIndex: figure.zIndex,
+      isPinned: figure.isPinned
     });
     await createdFigure.save();
     return createdFigure;
@@ -169,6 +170,22 @@ class FigureRepository {
     return null;
   }
 
+  /** 
+   * switch pin status
+   * @param {*} id 
+   * @returns figure properties, null if unsuccessful
+   */
+  static async switchPinStatusFigure(id) {
+    var updatedFigure = await FigurePost.findById(id);
+    if (updatedFigure) {
+      var isPinned = !updatedFigure.isPinned;
+      updatedFigure.isPinned = isPinned;
+
+      await updatedFigure.save();
+      return updatedFigure;
+    }
+    return null;
+  }
   
   /** 
    * check is the properties of figure valid or not
