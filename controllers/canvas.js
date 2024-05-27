@@ -92,7 +92,7 @@ router.post('/editor', async (req, res) => {
     }
 
     FiguresWebSocket.sendMessage("create", createdFigure);
-    res.sendStatus(200);
+    res.status(200).json(createdFigure);
   }
   catch {
     res.sendStatus(500);
@@ -116,7 +116,7 @@ router.post('/preview', async (req, res) => {
     await PreviewInfoRepository.createPreviewInfo(createdFigure._id, req.body.url, cheerioData);
   
     FiguresWebSocket.sendMessage("create", createdFigure);
-    res.sendStatus(200);
+    res.status(200).json(createdFigure);
   }
   catch {
     res.sendStatus(500);
@@ -180,7 +180,7 @@ router.post('/image', async (req, res) => {
     }
 
     FiguresWebSocket.sendMessage("create", updatedFigure);
-    res.sendStatus(200);
+    res.status(200).json(createdFigure);
   }
   catch { 
     res.sendStatus(500);
@@ -198,7 +198,7 @@ router.put('/positionAndSize', async (req, res) => {
     }
     
     FiguresWebSocket.sendMessage("update", updatedFigure);
-    res.sendStatus(200);
+    res.status(200).json(updatedFigure);
   }
   catch {
     res.sendStatus(500);
@@ -215,7 +215,7 @@ router.put('/backgroundColor', async (req, res) => {
     }
 
     FiguresWebSocket.sendMessage("update", updatedFigure);
-    res.sendStatus(200);
+    res.status(200).json(updatedFigure);
   }
   catch {
     res.sendStatus(500);
@@ -231,7 +231,7 @@ router.put('/pin', async (req, res) => {
     }
 
     FiguresWebSocket.sendMessage("update", updatedFigure);
-    res.sendStatus(200);
+    res.status(200).json(updatedFigure);
   }
   catch {
     res.sendStatus(500);
@@ -255,7 +255,7 @@ router.put('/layer', async (req, res) => {
     }
 
     FiguresWebSocket.sendMessage("update", updatedFigure);
-    res.sendStatus(200);
+    res.status(200).json(updatedFigure);
   }
   catch {
     res.sendStatus(500);
@@ -308,7 +308,7 @@ router.post('/copyFigure', async (req, res) => {
     }
 
     FiguresWebSocket.sendMessage("copy", createdFigure);
-    res.sendStatus(200);
+    res.status(200).json(createdFigure);
   }
   catch {
     res.sendStatus(500);
@@ -338,13 +338,12 @@ router.delete('/figure', async (req, res) => {
       }
 
       FiguresWebSocket.sendMessage("delete", figure);
-      res.sendStatus(200);
+      res.status(200).json(figure);
       return;
     }
     res.status(404).send("Figure not found");
   }
-  catch (error) {
-    console.log(error)
+  catch {
     res.sendStatus(500);
   }
 });
