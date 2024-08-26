@@ -61,13 +61,15 @@ async function main () {
   // handle the WebSocket upgrade process manually
   server.on('upgrade', (request, socket, head) => {
 
-    if (request.url === '/figure') {
+    const url = request.url.slice(1, 8);
+
+    if (url === 'figures') {
       wssFigure.handleUpgrade(request, socket, head, /** @param {any} ws */ ws => {
         wssFigure.emit('connection', ws, request);
       })
     }
 
-    else if (request.url.includes("/cursor")) {
+    else if (url === "cursors") {
       wssCursor.handleUpgrade(request, socket, head, /** @param {any} ws */ ws => {
         wssCursor.emit('connection', ws, request);
       })

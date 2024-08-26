@@ -5,7 +5,7 @@ class FigureRepository {
 
   /** 
    * create figure
-   * @param {*} figure type, width, height, x, y, backgroundColor, url and zIndex
+   * @param {*} figure boardId, type, width, height, x, y, backgroundColor, url and zIndex
    * @returns figure properties, null if unsuccessful
    */
   static async createFigure(figure) {
@@ -14,6 +14,7 @@ class FigureRepository {
     }
     
     var createdFigure = new FigurePost({
+      boardId: figure.boardId,
       type: figure.type,
       width: figure.width,
       height: figure.height,
@@ -33,8 +34,8 @@ class FigureRepository {
    * read all figures
    * @returns array of figures with their properties, empty array [] with no figures are found
    */
-  static async readAllFigures() {
-    var figures = await FigurePost.find();
+  static async readAllFigures(boardId) {
+    var figures = await FigurePost.find({ boardId: boardId });
     if (figures.length > 0) {
       return figures;
     }
@@ -175,10 +176,9 @@ class FigureRepository {
    * @param {*} id 
    * @returns figure properties, null if unsuccessful
    */
-  static async switchPinStatusFigure(id) {
+  static async updatePinStatusFigure(id, isPinned) {
     var updatedFigure = await FigurePost.findById(id);
     if (updatedFigure) {
-      var isPinned = !updatedFigure.isPinned;
       updatedFigure.isPinned = isPinned;
 
       await updatedFigure.save();

@@ -9,6 +9,10 @@ const FigureSchema = new Schema({
       return 'figure_' + new mongoose.Types.ObjectId().toString();
     }
   },
+  boardId: {
+    type: String,
+    requried: true
+  },
   type: {
     type: String,
     requried: true,

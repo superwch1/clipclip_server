@@ -22,7 +22,14 @@ router.get('/', (req, res) => {
 // https://jaybarnes33.hashnode.dev/generating-link-previews-with-react-and-nodejs
 router.get("/preview", async (req, res) => {
   try {
-    var previewInfo = await PreviewInfoPost.find({figureId: req.query.id})
+    var previewInfo = await PreviewInfoPost.find({figureId: req.query.id});
+
+    var response = await axios.get(previewInfo[0].image, { responseType: 'arraybuffer' });
+    const base64Data = Buffer.from(response.data, 'binary').toString('base64');
+    const contentType = response.headers['content-type'] || response.headers['Content-Type'];
+    const base64 = `data:${contentType};base64,${base64Data}`;
+    previewInfo[0].image = base64;
+
     if (previewInfo) {
       res.status(200).json(previewInfo);
     }
@@ -30,7 +37,14 @@ router.get("/preview", async (req, res) => {
       res.status(404).send("Preview not found");
     }
   } catch (error) {
-    res.sendStatus(500);
+
+    // error in fetching image from external source
+    const fileBuffer = fs.readFileSync(global.appDirectory + "/previewError.jpg");
+    const base64Data = fileBuffer.toString('base64');
+    const base64 = `data:${"image/jpeg"};base64,${base64Data}`;
+    previewInfo[0].image = base64;
+    
+    res.status(200).json(previewInfo);
   }
 });
 
@@ -43,8 +57,7 @@ router.get('/image', (req, res) => {
     }
     else {
       res.status(404).send("Image not found");
-    }
-    
+    }    
   }
   catch {
     res.sendStatus(500);
@@ -54,7 +67,7 @@ router.get('/image', (req, res) => {
 
 router.get('/figures', async (req, res) => {
   try {
-    var figures = await FigureRepository.readAllFigures(); 
+    var figures = await FigureRepository.readAllFigures(req.query.boardId); 
     if (figures) {
       res.status(200).json(figures);
     }
@@ -224,7 +237,7 @@ router.put('/backgroundColor', async (req, res) => {
 
 router.put('/pin', async (req, res) => {
   try {    
-    var updatedFigure = await FigureRepository.switchPinStatusFigure(req.body.id);
+    var updatedFigure = await FigureRepository.updatePinStatusFigure(req.body.id, req.body.isPinned);
     if (updatedFigure === null) {
       res.status(400).send("Invalid figure properties");
       return;
@@ -347,6 +360,7 @@ router.delete('/figure', async (req, res) => {
     res.sendStatus(500);
   }
 });
+
 
 
 module.exports = router;

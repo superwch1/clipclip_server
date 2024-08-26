@@ -2,24 +2,41 @@ const url = require('url');
 
 class CursorsWebSocket {
   static clients = new Set();
-  static cursors = new Map();
+  static cursorsMap = new Map();
 
   static setupCursorConnection(ws, request) {
     // (this) is referred to the WebSocketServer not FiguresWebSocket so it cannot be used here
     const parsedUrl = url.parse(request.url, true);
     const uuid = parsedUrl.query.uuid;
     const isDesktop = parsedUrl.query.isDesktop; 
+    const boardId = parsedUrl.query.boardId;
+    ws.boardId = boardId;
+
 
     if (isDesktop === "true") {
-      CursorsWebSocket.cursors.set(`${uuid}`, { x: 0, y: 0 });
+      var map = CursorsWebSocket.cursorsMap.get(`${boardId}`);
+      if (map === undefined) {
+        CursorsWebSocket.cursorsMap.set(`${boardId}`, new Map());
+      }
+      
+      CursorsWebSocket.cursorsMap.get(`${boardId}`).set(`${uuid}`, { x: 0, y: 0 });
     }
     CursorsWebSocket.clients.add(ws);
 
+
     ws.on('message', async (data) => CursorsWebSocket.handleMessage(data, ws));
+
 
     ws.on('close', () => {
       if (isDesktop === "true") {
-        CursorsWebSocket.cursors.delete(`${uuid}`);
+        var map = CursorsWebSocket.cursorsMap.get(`${boardId}`);
+        if (map !== undefined) {
+          CursorsWebSocket.cursorsMap.get(`${boardId}`).delete(`${uuid}`);
+        }
+
+        if (map.size === 0) {
+          CursorsWebSocket.cursorsMap.delete(`${boardId}`);
+        }
       }
       CursorsWebSocket.clients.delete(ws);
     });
@@ -37,9 +54,8 @@ class CursorsWebSocket {
 
   static startBroadcastCursorLocation() {
     setInterval(() => {
-      const cursorsArray = Array.from(this.cursors, ([key, value]) => ({ key, value }));
-
       this.clients.forEach((client) => {
+        const cursorsArray = Array.from(this.cursorsMap.get(`${client.boardId}`), ([key, value]) => ({ key, value }));
         client.send(JSON.stringify({cursors: cursorsArray}));      
       });
     }, 100);
@@ -48,7 +64,12 @@ class CursorsWebSocket {
 
   static setCursorPosition(message) {
     try {
-      this.cursors.set(`${message.uuid}`, { x: message.x, y: message.y })
+      var map = CursorsWebSocket.cursorsMap.get(`${message.boardId}`);
+      if (map === undefined) {
+        map = CursorsWebSocket.cursorsMap.set(`${message.boardId}`, new Map());
+      }
+
+      CursorsWebSocket.cursorsMap.get(`${message.boardId}`).set(`${message.uuid}`, { x: message.x, y: message.y })
     }
     catch {}
   }

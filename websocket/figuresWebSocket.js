@@ -1,7 +1,13 @@
+const url = require('url');
+
 class FiguresWebSocket {
   static clients = new Set();
 
-  static setupFigureConnection(ws) {
+  static setupFigureConnection(ws, request) {
+
+    const parsedUrl = url.parse(request.url, true);
+    ws.boardId = parsedUrl.query.boardId;
+
     // (this) is referred to the WebSocketServer not FiguresWebSocket so it cannot be used here
     FiguresWebSocket.clients.add(ws);
     ws.on('message', async (data) => FiguresWebSocket.handleMessage(data, ws));
@@ -22,7 +28,9 @@ class FiguresWebSocket {
 
   static sendMessage(action, figure) {
     this.clients.forEach((client) => {
-      client.send(JSON.stringify({action: action, figure: figure}));
+      if (figure.boardId === client.boardId) {
+        client.send(JSON.stringify({action: action, figure: figure}));
+      }
     });
   }
 }
