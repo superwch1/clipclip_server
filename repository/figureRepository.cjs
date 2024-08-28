@@ -1,5 +1,6 @@
 const FigurePost = require('../models/figure');
 const Config = require('../config');
+const mongoose = require('mongoose');
 
 class FigureRepository {
 
@@ -9,11 +10,38 @@ class FigureRepository {
    * @returns figure properties, null if unsuccessful
    */
   static async createFigure(figure) {
-    if (this.isInvalidFigure(figure) === true) {
+    
+    var createdFigure = new FigurePost({
+      boardId: figure.boardId,
+      type: figure.type,
+      width: figure.width,
+      height: figure.height,
+      x: figure.x,
+      y: figure.y,
+      backgroundColor: figure.backgroundColor,
+      url: figure.url,
+      zIndex: figure.zIndex,
+      isPinned: figure.isPinned
+    });
+    await createdFigure.save();
+    return createdFigure;
+  }
+
+
+  /** 
+   * create figure with Id
+   * @param {*} figure id, boardId, type, width, height, x, y, backgroundColor, url and zIndex
+   * @returns figure properties, null if unsuccessful
+   */
+  static async createFigureWithId(figure) {
+
+    var existingFigure = await FigurePost.findById(figure.id);
+    if (existingFigure !== null) {
       return null;
     }
     
     var createdFigure = new FigurePost({
+      _id: figure.id,
       boardId: figure.boardId,
       type: figure.type,
       width: figure.width,
@@ -80,10 +108,7 @@ class FigureRepository {
    * @param {*} figure id, x, y, width and height
    * @returns figure properties, null if unsuccessful
    */
-  static async updateFigureSizeAndPosition(figure) {
-    if (this.isInvalidSizeAndPosition(figure)) {
-      return null;
-    }
+  static async updateFigurePositionAndSize(figure) {
 
     var updatedFigure = await FigurePost.findById(figure.id);
     if (updatedFigure) {
@@ -105,10 +130,6 @@ class FigureRepository {
    * @returns figure properties, null if unsuccessful
    */
   static async updateFigureBackgroundColor(figure) {
-    if(this.isInvalidBackgroundColor(figure)){
-      return null;
-    }
-
     var updatedFigure = await FigurePost.findById(figure.id);
     if (updatedFigure) {
       updatedFigure.backgroundColor = figure.backgroundColor;
@@ -185,71 +206,6 @@ class FigureRepository {
       return updatedFigure;
     }
     return null;
-  }
-  
-  /** 
-   * check is the properties of figure valid or not
-   * @param {*} figure type, x, y, width, height, backgorundColor and zIndex
-   * @returns true, false if invalid
-   */
-  static isInvalidFigure(figure) {
-    if (this.isInvalidSizeAndPosition(figure)) {
-      return true;
-    }
-
-    if (this.isInvalidBackgroundColor(figure)) {
-      return true;
-    }
-    
-    // check if it is an integer
-    if (figure.zIndex % 1 !== 0 || figure.zIndex > Config.figureMaxZIndex || figure.zIndex < Config.figureMinZIndex) {
-      return true;
-    }
-
-    if (!(figure.type === Config.figureType[0] || figure.type === Config.figureType[1] || figure.type === Config.figureType[2])) {
-      return true;
-    }
-    return false;
-  }
-
-
-  /** 
-   * check is the size and position of figure valid or not
-   * @param {*} figure x, y, width and height
-   * @returns true, false if invalid
-   */
-  static isInvalidSizeAndPosition(figure) {
-    if (figure.x < 0 || figure.y < 0) {
-      return true;
-    }
-    else if (figure.x + figure.width > Config.interfaceWidth || figure.y + figure.height > Config.interfaceHeight) {
-      return true;
-    }
-
-    if (figure.width < Config.figureMinWidth || figure.width > Config.figureMaxWidth) {
-      return true;
-    }
-    else if (figure.height < Config.figureMinHeight || figure.height > Config.figureMaxHeight) {
-      return true;
-    }
-    return false;
-  }
-
-  
-  /** 
-   * check is the background color of figure valid or not
-   * @param {*} figure background color
-   * @returns true, false if invalid
-   */
-  static isInvalidBackgroundColor(figure) {
-    // rgba(0,0,0,1) to rbga(255,255,255,0);
-    // \d{1,2}?\d matches numbers from 0 to 99,  1\d{2} matches numbers from 100 to 199, 
-    // 2[0-4]\d matches numbers from 200 to 249,  25[0-5] matches numbers from 250 to 255.
-    // (0?\.\d+|[01]) matches either 0 or 1 or a decimal number between 0 and 1   
-    if(!/^rgba\((\d{1,2}|1\d{2}|2[0-4]\d|25[0-5]),(\d{1,2}|1\d{2}|2[0-4]\d|25[0-5]),(\d{1,2}|1\d{2}|2[0-4]\d|25[0-5]),(0?\.\d+|[01])\)$/.test(figure.backgroundColor)) {
-      return true;
-    }
-    return false;
   }
 }
 

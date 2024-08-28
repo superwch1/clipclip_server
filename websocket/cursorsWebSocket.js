@@ -14,11 +14,14 @@ class CursorsWebSocket {
 
 
     if (isDesktop === "true") {
+
+      // add a new map with boardId inside cursorsMap if no existing map is found
       var map = CursorsWebSocket.cursorsMap.get(`${boardId}`);
       if (map === undefined) {
         CursorsWebSocket.cursorsMap.set(`${boardId}`, new Map());
       }
-      
+
+      // the location will be stored using uuid provided from client as key
       CursorsWebSocket.cursorsMap.get(`${boardId}`).set(`${uuid}`, { x: 0, y: 0 });
     }
     CursorsWebSocket.clients.add(ws);
@@ -34,6 +37,7 @@ class CursorsWebSocket {
           CursorsWebSocket.cursorsMap.get(`${boardId}`).delete(`${uuid}`);
         }
 
+        // delete the map with no more cursor location inside that map
         if (map.size === 0) {
           CursorsWebSocket.cursorsMap.delete(`${boardId}`);
         }

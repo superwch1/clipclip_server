@@ -111,7 +111,6 @@ async function main () {
 
   const mongoose = require('mongoose');
   await mongoose.connect(Config.mongodb_Uri);
-
   
   const canvasRouter = require('./controllers/canvas');
   app.use('', canvasRouter);
@@ -124,7 +123,7 @@ async function main () {
   server.listen(Config.port, () => {
     console.log(`running on port ${Config.port}`)
 
-    // broadcast cursor location continuously
+    // broadcast cursor location continuously every 100 milliseconds
     CursorsWebSocket.startBroadcastCursorLocation();
   });
 }
