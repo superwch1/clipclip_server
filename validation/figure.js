@@ -7,6 +7,7 @@ const validateFields = [
 
   check('figure.boardId')
     .isString()
+    .custom(value => /^[a-z0-9_-]*$/.test(value))
     .withMessage('invalid figure boardId'),
 
   check('figure.type')

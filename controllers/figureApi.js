@@ -33,7 +33,19 @@ router.get('', (req, res) => {
  * @returns 200 - html file of react
  */
 router.get('/board/*', (req, res) => {
-  res.sendFile(path.resolve(global.appDirectory, 'views/index.html'));
+  console.log(req.path);
+
+  // redirect the path it if consist letter rather than 0-9, a-z and -_ symbol
+  if (/^[a-z0-9_-]*$/.test(req.path.slice(7))) {
+    res.sendFile(path.resolve(global.appDirectory, 'views/index.html'));
+  }
+
+  // replace invalid letter to '' and capital letter to lower case letter
+  else {
+    var newPath = req.path.slice(7).toLowerCase().replace(/[^a-z0-9_-]/g, ''); 
+    res.redirect(`/board/${newPath}`);
+  }
+  
 });
 
 
