@@ -62,7 +62,7 @@ router.get('/figures', async (req, res) => {
  * get the preview information
  * @param {*} figure id
  * @returns 200 - url, title, favicon, description, image (base64), author of preview (previewInfo is found)
- *          400 - no preview info is found
+ *          202 - no preview info is found (since iisnode only provide default message for 400)
  *          500 - server error
  */
 router.get("/preview", async (req, res) => {
@@ -80,7 +80,7 @@ router.get("/preview", async (req, res) => {
       res.status(200).json(previewInfo);
     }
     else {
-      res.status(400).send("figure not found");
+      res.status(202).send("figure not found");
     }
   } catch (error) {
 
@@ -99,7 +99,7 @@ router.get("/preview", async (req, res) => {
  * get the image
  * @param {*} figure url (path to image)
  * @returns 200 - file of the image
- *          400 - no image is found on server
+ *          202 - no image is found on server (since iisnode only provide default message for 400)
  *          500 - server error
  */
 router.get('/image', (req, res) => {
@@ -109,7 +109,7 @@ router.get('/image', (req, res) => {
       res.status(200).sendFile(imagePath, (error) => {});
     }
     else {
-      res.status(400).send("figure not found");
+      res.status(202).send("figure not found");
     }    
   }
   catch {
@@ -122,14 +122,14 @@ router.get('/image', (req, res) => {
  * create a editor figure
  * @param {*} figure boardId, x, y, width, height, type, backgroundColor, url, zIndex, isPinned, plainText, quillDelta
  * @returns 200 - properties of the created figure
- *          400 - invalid properties inside the middleware
+ *          202 - invalid properties inside the middleware (since iisnode only provide default message for 400)
  *          500 - server error
  */
 router.post('/editor', validateFigure, async (req, res) => {
   try {
     var createdFigure = await FigureRepository.createFigure(req.body.figure);
     if (createdFigure === null) {
-      res.status(400).send("invalid properties");
+      res.status(202).send("invalid properties");
       return;
     }
 
@@ -161,14 +161,14 @@ router.post('/editor', validateFigure, async (req, res) => {
  * create a editor (with id) figure
  * @param {*} figure id, boardId, x, y, width, height, type, backgroundColor, url, zIndex, isPinned, plainText, quillDelta
  * @returns 200 - properties of the created figure
- *          400 - invalid properties inside the middleware
+ *          202 - invalid properties inside the middleware (since iisnode only provide default message for 400)
  *          500 - server error
  */
 router.post('/editorWithId', validateFigure, validateFigureId, async (req, res) => {
   try {
     var createdFigure = await FigureRepository.createFigureWithId(req.body.figure);
     if (createdFigure === null) {
-      res.status(400).send("invalid properties");
+      res.status(202).send("invalid properties");
       return;
     }
 
@@ -188,7 +188,7 @@ router.post('/editorWithId', validateFigure, validateFigureId, async (req, res) 
     }
 
     FiguresWebSocket.sendMessage("create", createdFigure);
-    res.status(200).json(createdFigure);
+    res.status(202).json(createdFigure);
   }
   catch {
     res.sendStatus(500);
@@ -200,7 +200,7 @@ router.post('/editorWithId', validateFigure, validateFigureId, async (req, res) 
  * create a preview figure
  * @param {*} figure boardId, x, y, width, height, type, backgroundColor, url, zIndex, isPinned
  * @returns 200 - properties of the created figure
- *          400 - invalid properties inside the middleware
+ *          202 - invalid properties inside the middleware (since iisnode only provide default message for 400)
  *          500 - server error
  */
 router.post('/preview', validateFigure, async (req, res) => {
@@ -210,7 +210,7 @@ router.post('/preview', validateFigure, async (req, res) => {
 
     var createdFigure = await FigureRepository.createFigure(req.body.figure);
     if (createdFigure === null) {
-      res.status(400).send("invalid properties");
+      res.status(202).send("invalid properties");
       return;
     }
     await PreviewInfoRepository.createPreviewInfo(createdFigure._id, req.body.figure.url, cheerioData);
@@ -228,7 +228,7 @@ router.post('/preview', validateFigure, async (req, res) => {
  * create a preview (with id) figure
  * @param {*} figure boardId, x, y, width, height, type, backgroundColor, url, zIndex, isPinned
  * @returns 200 - properties of the created figure
- *          400 - invalid properties inside the middleware
+ *          202 - invalid properties inside the middleware (since iisnode only provide default message for 400)
  *          500 - server error
  */
 router.post('/previewWithId', validateFigure, validateFigureId, async (req, res) => {
@@ -238,7 +238,7 @@ router.post('/previewWithId', validateFigure, validateFigureId, async (req, res)
 
     var createdFigure = await FigureRepository.createFigureWithId(req.body.figure);
     if (createdFigure === null) {
-      res.status(400).send("invalid properties");
+      res.status(202).send("invalid properties");
       return;
     }
     await PreviewInfoRepository.createPreviewInfo(createdFigure._id, req.body.figure.url, cheerioData);
@@ -256,7 +256,7 @@ router.post('/previewWithId', validateFigure, validateFigureId, async (req, res)
  * create a image figure
  * @param {*} figure boardId, x, y, width, height, type, backgroundColor, url, zIndex, isPinned, isDefaultSize, base64
  * @returns 200 - properties of the created figure
- *          400 - invalid properties inside the middleware
+ *          202 - invalid properties inside the middleware (since iisnode only provide default message for 400)
  *          500 - server error
  */
 router.post('/image', validateFigure, async (req, res) => {
@@ -269,7 +269,7 @@ router.post('/image', validateFigure, async (req, res) => {
     // gif is not animaited - https://github.com/lovell/sharp/issues/4092
     var metadata = await sharp(buffer).metadata();
     if(metadata.size > Config.imageMaxSize) {
-      res.status(400).send("size of image too large");
+      res.status(202).send("size of image too large");
       return;
     }
 
@@ -301,7 +301,7 @@ router.post('/image', validateFigure, async (req, res) => {
 
     var createdFigure = await FigureRepository.createFigure(figure);
     if (createdFigure === null) {
-      res.status(400).send("invalid properties");
+      res.status(202).send("invalid properties");
       return;
     }
 
@@ -310,7 +310,7 @@ router.post('/image', validateFigure, async (req, res) => {
 
     var updatedFigure = await FigureRepository.updateFigureUrl(createdFigure._id, `${createdFigure._id}.${metadata.format}`);
     if (updatedFigure === null) {
-      res.status(400).send("invalid properties");
+      res.status(202).send("invalid properties");
       return;
     }
 
@@ -327,7 +327,7 @@ router.post('/image', validateFigure, async (req, res) => {
  * create a image (with id) figure
  * @param {*} figure id, boardId, x, y, width, height, type, backgroundColor, url, zIndex, isPinned, isDefaultSize, base64
  * @returns 200 - properties of the created figure
- *          400 - invalid properties inside the middleware
+ *          202 - invalid properties inside the middleware (since iisnode only provide default message for 400)
  *          500 - server error
  */
 router.post('/imageWithId', validateFigure, validateFigureId, async (req, res) => {
@@ -340,7 +340,7 @@ router.post('/imageWithId', validateFigure, validateFigureId, async (req, res) =
     // gif is not animaited - https://github.com/lovell/sharp/issues/4092
     var metadata = await sharp(buffer).metadata();
     if(metadata.size > Config.imageMaxSize) {
-      res.status(400).send("size of image too large");
+      res.status(202).send("size of image too large");
       return;
     }
 
@@ -372,7 +372,7 @@ router.post('/imageWithId', validateFigure, validateFigureId, async (req, res) =
 
     var createdFigure = await FigureRepository.createFigureWithId(figure);
     if (createdFigure === null) {
-      res.status(400).send("invalid properties");
+      res.status(202).send("invalid properties");
       return;
     }
 
@@ -381,7 +381,7 @@ router.post('/imageWithId', validateFigure, validateFigureId, async (req, res) =
 
     var updatedFigure = await FigureRepository.updateFigureUrl(createdFigure._id, `${createdFigure._id}.${metadata.format}`);
     if (updatedFigure === null) {
-      res.status(400).send("invalid properties");
+      res.status(202).send("invalid properties");
       return;
     }
 
@@ -398,7 +398,7 @@ router.post('/imageWithId', validateFigure, validateFigureId, async (req, res) =
  * update the position and size of a figure
  * @param {*} figure id, x, y, width, height
  * @returns 200 - properties of the updated figure
- *          400 - invalid properties inside the middleware
+ *          202 - invalid properties inside the middleware (since iisnode only provide default message for 400)
  *          500 - server error
  */
 router.put('/positionAndSize', validatePositionAndSize, async (req, res) => {
@@ -406,7 +406,7 @@ router.put('/positionAndSize', validatePositionAndSize, async (req, res) => {
     // only id, width, height, x and y is needed inside the figure
     var updatedFigure = await FigureRepository.updateFigurePositionAndSize(req.body.figure);
     if (updatedFigure === null) {
-      res.status(400).send("invalid properties");
+      res.status(202).send("invalid properties");
       return;
     }
     
@@ -423,14 +423,14 @@ router.put('/positionAndSize', validatePositionAndSize, async (req, res) => {
  * update the background color of a figure
  * @param {*} figure id, background color
  * @returns 200 - properties of the updated figure
- *          400 - invalid properties inside the middleware
+ *          202 - invalid properties inside the middleware (since iisnode only provide default message for 400)
  *          500 - server error
  */
 router.put('/backgroundColor', validateBackgroundColor, async (req, res) => {
   try {    
     var updatedFigure = await FigureRepository.updateFigureBackgroundColor(req.body.figure)
     if (updatedFigure === null) {
-      res.status(400).send("invalid properties");
+      res.status(202).send("invalid properties");
       return;
     }
 
@@ -447,20 +447,20 @@ router.put('/backgroundColor', validateBackgroundColor, async (req, res) => {
  * update the pin status of a figure
  * @param {*} figure id, isPinned (true / false)
  * @returns 200 - properties of the updated figure
- *          400 - invalid properties inside the middleware
+ *          202 - invalid properties inside the middleware (since iisnode only provide default message for 400)
  *          500 - server error
  */
 router.put('/pin', async (req, res) => {
   try {    
 
     if (!(req.body.isPinned === true || req.body.isPinned === false)) {
-      res.status(400).send("invalid pin status");
+      res.status(202).send("invalid pin status");
       return;
     }
 
     var updatedFigure = await FigureRepository.updatePinStatusFigure(req.body.id, req.body.isPinned);
     if (updatedFigure === null) {
-      res.status(400).send("invalid properties");
+      res.status(202).send("invalid properties");
       return;
     }
 
@@ -477,14 +477,14 @@ router.put('/pin', async (req, res) => {
  * update the layer of a figure
  * @param {*} figure id, action ("up" / "down")
  * @returns 200 - properties of the updated figure
- *          400 - invalid properties inside the middleware
+ *          202 - invalid properties inside the middleware (since iisnode only provide default message for 400)
  *          500 - server error
  */
 router.put('/layer', async (req, res) => {
   try {    
 
     if (!(req.body.action === "up" || req.body.action === "down")) {
-      res.status(400).send("invalid layer action");
+      res.status(202).send("invalid layer action");
       return;
     }
 
@@ -497,7 +497,7 @@ router.put('/layer', async (req, res) => {
     }
     
     if (updatedFigure === null) {
-      res.status(400).send("invalid properties");
+      res.status(202).send("invalid properties");
       return;
     }
 
@@ -514,7 +514,7 @@ router.put('/layer', async (req, res) => {
  * delete a figure
  * @param {*} figure id
  * @returns 200 - properties of the deleted figure
- *          400 - figure not found in database
+ *          202 - figure not found in database (since iisnode only provide default message for 400)
  *          500 - server error
  */
 router.delete('/figure', async (req, res) => {
@@ -542,7 +542,7 @@ router.delete('/figure', async (req, res) => {
       res.status(200).json(figure);
       return;
     }
-    res.status(400).send("figure not found");
+    res.status(202).send("figure not found");
   }
   catch {
     res.sendStatus(500);
@@ -551,60 +551,3 @@ router.delete('/figure', async (req, res) => {
 
 
 module.exports = router;
-
-
-
-/*
-router.post('/copyFigure', async (req, res) => {
-  try {
-    var figure = await FigureRepository.readFigure(req.body.id);
-    if (figure == null) {
-      res.status(400).send("figure not found");
-      return;
-    }
-     
-    figure.x = figure.x + figure.width + 100;
-    var createdFigure = await FigureRepository.createFigure(figure);
-    if (createdFigure === null) {
-      res.status(400).send("invalid properties");
-      return;
-    }
-
-    if (figure.type === 'editor') {
-      await YjsRepository.copyAllWritings(figure._id, createdFigure._id);
-    }
-    else if (figure.type === 'image') {
-      const format = figure.url.split('.')
-      createdFigure = await FigureRepository.updateFigureUrl(createdFigure._id, `${createdFigure._id}.${format[1]}`);
-      if (createdFigure === null) {
-        res.status(400).send("invalid properties");
-        return;
-      }
-
-      fs.copyFile(`./images/${figure.url}`, `./images/${createdFigure.url}`, async (err) => {
-        // the error catch function need to be exist or error will occur
-        if (err !== null) {
-          await FigureRepository.deleteFigure(createdFigure._id);
-          createdFigure = null;
-        }
-      });
-      
-      // stop sending websocket to all user when it has error in saving image 
-      if (createdFigure === null) {
-        res.status(400).send("error in saving image");
-        return;
-      }
-    }
-    else if (figure.type === 'preview') {
-      await PreviewInfoRepository.copyPreviewInfo(figure._id, createdFigure._id);
-    }
-
-    FiguresWebSocket.sendMessage("create", createdFigure);
-    res.status(200).json(createdFigure);
-  }
-  catch {
-    res.sendStatus(500);
-  } 
-});
-
-*/

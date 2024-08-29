@@ -112,8 +112,8 @@ async function main () {
   const mongoose = require('mongoose');
   await mongoose.connect(Config.mongodb_Uri);
   
-  const canvasRouter = require('./controllers/canvas');
-  app.use('', canvasRouter);
+  const figureApiRouter = require('./controllers/figureApi');
+  app.use('', figureApiRouter);
 
   server.on('request', app);
   // end of configuration for express server
