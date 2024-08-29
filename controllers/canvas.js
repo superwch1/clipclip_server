@@ -205,18 +205,15 @@ router.post('/editorWithId', validateFigure, validateFigureId, async (req, res) 
  */
 router.post('/preview', validateFigure, async (req, res) => {
   try {
-    const { data } = await axios.get(req.body.url);
+    const { data } = await axios.get(req.body.figure.url);
     const cheerioData = cheerio.load(data);
 
-    var figure = req.body.figure;
-    figure.url = req.body.url;
-
-    var createdFigure = await FigureRepository.createFigure(figure);
+    var createdFigure = await FigureRepository.createFigure(req.body.figure);
     if (createdFigure === null) {
       res.status(400).send("invalid properties");
       return;
     }
-    await PreviewInfoRepository.createPreviewInfo(createdFigure._id, req.body.url, cheerioData);
+    await PreviewInfoRepository.createPreviewInfo(createdFigure._id, req.body.figure.url, cheerioData);
   
     FiguresWebSocket.sendMessage("create", createdFigure);
     res.status(200).json(createdFigure);
@@ -236,18 +233,15 @@ router.post('/preview', validateFigure, async (req, res) => {
  */
 router.post('/previewWithId', validateFigure, validateFigureId, async (req, res) => {
   try {
-    const { data } = await axios.get(req.body.url);
+    const { data } = await axios.get(req.body.figure.url);
     const cheerioData = cheerio.load(data);
 
-    var figure = req.body.figure;
-    figure.url = req.body.url;
-
-    var createdFigure = await FigureRepository.createFigureWithId(figure);
+    var createdFigure = await FigureRepository.createFigureWithId(req.body.figure);
     if (createdFigure === null) {
       res.status(400).send("invalid properties");
       return;
     }
-    await PreviewInfoRepository.createPreviewInfo(createdFigure._id, req.body.url, cheerioData);
+    await PreviewInfoRepository.createPreviewInfo(createdFigure._id, req.body.figure.url, cheerioData);
   
     FiguresWebSocket.sendMessage("create", createdFigure);
     res.status(200).json(createdFigure);

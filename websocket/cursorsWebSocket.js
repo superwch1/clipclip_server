@@ -38,7 +38,7 @@ class CursorsWebSocket {
         }
 
         // delete the map with no more cursor location inside that map
-        if (map.size === 0) {
+        if (map !== undefined && map.size === 0) {
           CursorsWebSocket.cursorsMap.delete(`${boardId}`);
         }
       }
