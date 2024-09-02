@@ -200,7 +200,7 @@ router.post('/editorWithId', validateFigure, validateFigureId, async (req, res) 
     }
 
     FiguresWebSocket.sendMessage("create", createdFigure);
-    res.status(202).json(createdFigure);
+    res.status(200).json(createdFigure);
   }
   catch {
     res.sendStatus(500);
