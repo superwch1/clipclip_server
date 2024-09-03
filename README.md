@@ -24,3 +24,11 @@ nodejs deployment
     <webSocket enabled="false" />
 </system.webServer>
 ```
+
+
+# Trouble shooting
+1. set the Default website to directory in iisnode (usual one will not provide detailed information error 500)
+2. This configuration section cannot be used at this path. This happens when the section is locked at a parent level. Locking is either by default (overrideModeDefault="Deny")
+3. Go to Server -> Configuration Setting -> system.webServer/handlers -> click Unlock Section (on action panel right side)
+4. https://stackoverflow.com/questions/34199976/iis-config-error-this-configuration-section-cannot-be-used-at-this-path
+
