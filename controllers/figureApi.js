@@ -82,12 +82,6 @@ router.get("/preview", async (req, res) => {
     // template from https://jaybarnes33.hashnode.dev/generating-link-previews-with-react-and-nodejs
     var previewInfo = await PreviewInfoPost.find({figureId: req.query.id});
 
-    var response = await axios.get(previewInfo[0].image, { responseType: 'arraybuffer' });
-    const base64Data = Buffer.from(response.data, 'binary').toString('base64');
-    const contentType = response.headers['content-type'] || response.headers['Content-Type'];
-    const base64 = `data:${contentType};base64,${base64Data}`;
-    previewInfo[0].image = base64;
-
     if (previewInfo) {
       res.status(200).json(previewInfo);
     }
@@ -95,14 +89,7 @@ router.get("/preview", async (req, res) => {
       res.status(202).send("figure not found");
     }
   } catch (error) {
-
-    // error in fetching image from external source
-    const fileBuffer = fs.readFileSync(global.appDirectory + "/previewError.jpg");
-    const base64Data = fileBuffer.toString('base64');
-    const base64 = `data:${"image/jpeg"};base64,${base64Data}`;
-    previewInfo[0].image = base64;
-    
-    res.status(200).json(previewInfo);
+    res.status(202).send("figure not found");
   }
 });
 
