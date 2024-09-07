@@ -80,7 +80,7 @@ router.get('/figures', async (req, res) => {
 router.get("/preview", async (req, res) => {
   try {
     // template from https://jaybarnes33.hashnode.dev/generating-link-previews-with-react-and-nodejs
-    var previewInfo = await PreviewInfoPost.find({figureId: req.query.id});
+    var previewInfo = await PreviewInfoPost.findOne({figureId: req.query.id});
 
     if (previewInfo) {
       res.status(200).json(previewInfo);
