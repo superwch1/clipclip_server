@@ -21,7 +21,7 @@ class PreviewInfoRepository {
         var previewInfo = new PreviewInfoPost({
             url: url,
             title: cheerioData("title").first().text(),
-            favicon: cheerioData('link[rel="shortcut icon"]').attr("href") || $('link[rel="alternate icon"]').attr("href"),
+            favicon: cheerioData('link[rel="shortcut icon"]').attr("href") || cheerioData('link[rel="alternate icon"]').attr("href"),
             description: getMetaTag("description"),
             image: getMetaTag("image"),
             author: getMetaTag("author"), 
@@ -57,6 +57,6 @@ class PreviewInfoRepository {
         });
         await newPreview.save()
     }
-  }
-  
-  module.exports = PreviewInfoRepository;
+}
+
+module.exports = PreviewInfoRepository;
