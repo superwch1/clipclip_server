@@ -1,31 +1,14 @@
-const YjsPost = require('../models/yjs');
+const pool = require('../db/pool.cjs');
 
 class YjsRepository {
-  
-  /** 
-   * delete all writing with same docName
+
+  /**
+   * delete all writings with same docName
+   * @param {*} docName
    */
   static async deleteAllWritings(docName) {
-    await YjsPost.deleteMany({docName: docName});
+    await pool.query('DELETE FROM "yjs-writings" WHERE docname = $1', [docName]);
   }
 }
 
 module.exports = YjsRepository;
-
-
-
-/*
-static async copyAllWritings(previousDocName, newDocName) {
-  var writings = await YjsPost.find({ docName: previousDocName});
-  for (var i = 0; i < writings.length; i++) {
-      var newWriting = new YjsPost({
-      action: writings [i].action,
-      clock: writings [i].clock,
-      version: writings [i].version,
-      docName: newDocName,
-      value: writings [i].value
-      });
-      await newWriting.save()
-  }
-}
-*/

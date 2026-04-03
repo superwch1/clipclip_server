@@ -1,11 +1,11 @@
 const WebSocket = require('ws')
 const http = require('http')
 const { setPersistence, setupWSConnection } = require('./websocket/y-websocket/utils.cjs');
-const { MongodbPersistence } = require('y-mongodb-provider');
 const Y = require('yjs');
 const Config = require('./config');
-const FigurePost = require('./models/figure');
 const YjsRepository = require('./repository/yjsRepository.cjs');
+const { PostgresqlPersistence } = require('y-postgresql');
+const pool = require('./db/pool.cjs');
 
 
 async function main () {
@@ -26,32 +26,38 @@ async function main () {
   const wssCursor = new WebSocket.Server({ noServer: true })
   wssCursor.on('connection', CursorsWebSocket.setupCursorConnection);
 
-  const mdb = new MongodbPersistence(Config.mongodb_Uri, {
-    flushSize: 400,
-    multipleCollections: false,
-  });
+  const pgdb = await PostgresqlPersistence.build(
+    {
+      host: "localhost",
+      port: 5432,
+      database: "clipclip",
+      user: "postgres",
+      password: "123456",
+    },
+    { tableName: 'yjs-writings', useIndex: false, flushSize: 200 },
+  );
 
   setPersistence({
     bindState: async (docName, ydoc) => {
       // This listen to granular document updates and store them in the database
-      const persistedYdoc = await mdb.getYDoc(docName);
+      const persistedYdoc = await pgdb.getYDoc(docName);
       const newUpdates = Y.encodeStateAsUpdate(ydoc);
-      mdb.storeUpdate(docName, newUpdates);
+      pgdb.storeUpdate(docName, newUpdates);
       Y.applyUpdate(ydoc, Y.encodeStateAsUpdate(persistedYdoc));
       ydoc.on('update', async (update) => {
-        mdb.storeUpdate(docName, update);
+        pgdb.storeUpdate(docName, update);
       });
     },
 
     // This is called when all connections to the document are closed.
     writeState: async (docName, ydoc) => {
       // flush document by merging recrods
-      await mdb.flushDocument(docName);
+      await pgdb.flushDocument(docName);
 
       // there will be 2 documents left in yjs-writing after using figuresWebSocket with deleteMany (unknown reason) 
       // after all connections are closed, remaining documents will be delete when it is not linked to figures 
-      var figure = await FigurePost.findById(docName);
-      if (!figure) {
+      const figureRes = await pool.query('SELECT id FROM figures WHERE id = $1', [docName]);
+      if (figureRes.rows.length === 0) {
         await YjsRepository.deleteAllWritings(docName);
       }
     },
@@ -105,12 +111,9 @@ async function main () {
 
   app.use(express.static('views/public')); //get the static file from public directory for html files
 
-  global.mdb = mdb;
+  global.pgdb = pgdb;
 
   app.use(express.json({ limit: `${Config.imageMaxSize / 1000000}mb` })); // base64 need large size for uploading images
-
-  const mongoose = require('mongoose');
-  await mongoose.connect(Config.mongodb_Uri);
   
   const figureApiRouter = require('./controllers/figureApi');
   app.use('', figureApiRouter);

@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const FigureRepository = require('../repository/figureRepository.cjs')
 const PreviewInfoRepository = require('../repository/previewInfoRepository.cjs')
-const PreviewInfoPost = require('../models/previewInfo');
 const YjsRepository = require('../repository/yjsRepository.cjs');
 const { FiguresWebSocket } = require('../websocket/figuresWebSocket');
 const path = require('path');
@@ -78,7 +77,7 @@ router.get('/figures', async (req, res) => {
  */
 router.get("/preview", async (req, res) => {
   try {
-    var previewInfo = await PreviewInfoPost.findOne({figureId: req.query.id});
+    var previewInfo = await PreviewInfoRepository.readPreviewInfo(req.query.id);
 
     if (previewInfo) {
       res.status(200).json(previewInfo);
@@ -136,7 +135,7 @@ router.post('/editor', validateFigure, async (req, res) => {
     figureId = createdFigure._id;
 
     if (req.body.plainText !== null || req.body.quillDelta !== null) {
-      const ydoc = await global.mdb.getYDoc(createdFigure._id);
+      const ydoc = await global.pgdb.getYDoc(createdFigure._id);
       const yText = ydoc.getText('quill');
 
       if (req.body.plainText !== null) {
@@ -147,7 +146,7 @@ router.post('/editor', validateFigure, async (req, res) => {
       }
       
       var u8intArray = Y.encodeStateAsUpdate(ydoc);
-      await global.mdb.storeUpdate(createdFigure._id, u8intArray);
+      await global.pgdb.storeUpdate(createdFigure._id, u8intArray);
     }
 
     FiguresWebSocket.sendMessage("create", createdFigure);
@@ -185,7 +184,7 @@ router.post('/editorWithId', validateFigure, validateFigureId, async (req, res) 
     figureId = createdFigure._id;
 
     if (req.body.plainText !== null || req.body.quillDelta !== null) {
-      const ydoc = await global.mdb.getYDoc(createdFigure._id);
+      const ydoc = await global.pgdb.getYDoc(createdFigure._id);
       const yText = ydoc.getText('quill');
 
       if (req.body.plainText !== null) {
@@ -196,7 +195,7 @@ router.post('/editorWithId', validateFigure, validateFigureId, async (req, res) 
       }
       
       var u8intArray = Y.encodeStateAsUpdate(ydoc);
-      await global.mdb.storeUpdate(createdFigure._id, u8intArray);
+      await global.pgdb.storeUpdate(createdFigure._id, u8intArray);
     }
 
     FiguresWebSocket.sendMessage("create", createdFigure);
