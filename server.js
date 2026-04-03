@@ -55,11 +55,12 @@ async function main () {
 
   const pgdb = await PostgresqlPersistence.build(
     {
-      host: "localhost",
+      host: Config.pgHost,
       port: 5432,
-      database: "clipclip",
-      user: "postgres",
-      password: "123456",
+      database: Config.pgDatabase,
+      user: Config.pgUser,
+      password: Config.pgPassword,
+      ssl: { rejectUnauthorized: false },
     },
     { tableName: 'yjs-writings', useIndex: false, flushSize: 200 },
   );

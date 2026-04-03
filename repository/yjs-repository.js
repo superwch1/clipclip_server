@@ -8,4 +8,4 @@ async function deleteAllWritings(docName) {
   await pool.query('DELETE FROM "yjs-writings" WHERE docname = $1', [docName]);
 }
 
-export default { deleteAllWritings };
+export { deleteAllWritings };

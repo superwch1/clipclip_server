@@ -1,12 +1,14 @@
 import pg from 'pg';
+import Config from '../config';
 
 const { Pool } = pg;
 const pool = new Pool({
-  host: "localhost",
+  host: Config.pgHost,
   port: 5432,
-  database: "clipclip",
-  user: "postgres",
-  password: "123456",
+  database: Config.pgDatabase,
+  user: Config.pgUser,
+  password: Config.pgPassword,
+  ssl: { rejectUnauthorized: false },
 });
 
 export default pool;
