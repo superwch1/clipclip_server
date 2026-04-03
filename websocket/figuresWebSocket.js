@@ -1,11 +1,11 @@
-const url = require('url');
+import { parse } from 'url';
 
 class FiguresWebSocket {
   static clients = new Set();
 
   static setupFigureConnection(ws, request) {
 
-    const parsedUrl = url.parse(request.url, true);
+    const parsedUrl = parse(request.url, true);
     ws.boardId = parsedUrl.query.boardId;
 
     // (this) is referred to the WebSocketServer not FiguresWebSocket so it cannot be used here
@@ -24,7 +24,7 @@ class FiguresWebSocket {
       }
     }
     catch {}
-  }  
+  }
 
   static sendMessage(action, figure) {
     this.clients.forEach((client) => {
@@ -36,6 +36,4 @@ class FiguresWebSocket {
 }
 
 
-module.exports = {
-  FiguresWebSocket: FiguresWebSocket
-};
+export { FiguresWebSocket };

@@ -1,4 +1,4 @@
-class Config {
+export default class Config {
   static port = process.env.PORT || '1234';
   static mongodb_Uri = 'mongodb://localhost:27017/personal_database';
 
@@ -16,7 +16,5 @@ class Config {
   static figureMinZIndex = 0;
   static figureMaxZIndex = 20;
 
-  static imageMaxSize = 10000000; 
+  static imageMaxSize = 10000000;
 }
-
-module.exports = Config;

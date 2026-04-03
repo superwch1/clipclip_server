@@ -1,4 +1,4 @@
-const pool = require('../db/pool.cjs');
+import pool from '../db/pool.js';
 
 class ImageRepository {
 
@@ -39,4 +39,4 @@ class ImageRepository {
   }
 }
 
-module.exports = ImageRepository;
+export default ImageRepository;

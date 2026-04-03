@@ -1,24 +1,25 @@
-const express = require('express');
+import express from 'express';
+import path from 'path';
+import { load as cheerioLoad } from 'cheerio';
+import axios from 'axios';
+import { createRequire } from 'module';
+const Y = createRequire(import.meta.url)('yjs');
+import sharp from 'sharp';
+import convert from 'heic-convert';
+import FigureRepository from '../repository/figureRepository.js';
+import PreviewInfoRepository from '../repository/previewInfoRepository.js';
+import ImageRepository from '../repository/imageRepository.js';
+import YjsRepository from '../repository/yjsRepository.js';
+import { FiguresWebSocket } from '../websocket/figuresWebSocket.js';
+import Config from '../config.js';
+import validateFigure from '../validation/figure.js';
+import validateFigureId from '../validation/figureId.js';
+import validateBackgroundColor from '../validation/figureBackgroundColor.js';
+import validatePositionAndSize from '../validation/figurePositionAndSize.js';
+
 const router = express.Router();
-const FigureRepository = require('../repository/figureRepository.cjs')
-const PreviewInfoRepository = require('../repository/previewInfoRepository.cjs')
-const ImageRepository = require('../repository/imageRepository.cjs')
-const YjsRepository = require('../repository/yjsRepository.cjs');
-const { FiguresWebSocket } = require('../websocket/figuresWebSocket');
-const path = require('path');
-const cheerio = require('cheerio');
-const axios = require('axios');
-const Y = require('yjs');
-const sharp = require('sharp');
-const Config = require('../config')
-const convert = require('heic-convert')
 
-const validateFigure = require('../validation/figure')
-const validateFigureId = require('../validation/figureId')
-const validateBackgroundColor = require('../validation/figureBackgroundColor')
-const validatePositionAndSize = require('../validation/figurePositionAndSize')
-
-/** 
+/**
  * redirect the url to /board/ if it does not provide a path
  * @returns '/board/'
  */
@@ -27,7 +28,7 @@ router.get('', (req, res) => {
 });
 
 
-/** 
+/**
  * render the webpage
  * @returns 200 - html file of react
  */
@@ -40,21 +41,21 @@ router.get('/board/*', (req, res) => {
 
   // replace invalid letter to '' and capital letter to lower case letter
   else {
-    var newPath = req.path.slice(7).toLowerCase().replace(/[^a-z0-9_-]/g, ''); 
+    var newPath = req.path.slice(7).toLowerCase().replace(/[^a-z0-9_-]/g, '');
     res.redirect(`/board/${newPath}`);
   }
-  
+
 });
 
 
-/** 
+/**
  * get the properties of figures
  * @param {*} figure boardId
  * @returns 200 - properties of figures, empty array if not found
  */
 router.get('/figures', async (req, res) => {
   try {
-    var figures = await FigureRepository.readAllFigures(req.query.boardId); 
+    var figures = await FigureRepository.readAllFigures(req.query.boardId);
     if (figures) {
       res.status(200).json(figures);
     }
@@ -68,7 +69,7 @@ router.get('/figures', async (req, res) => {
 })
 
 
-/** 
+/**
  * get the preview information
  * @param {*} figure id
  * @returns 200 - url, title, favicon, description, image (base64), author of preview (previewInfo is found)
@@ -91,7 +92,7 @@ router.get("/preview", async (req, res) => {
 });
 
 
-/** 
+/**
  * get the image
  * @param {*} figure url (path to image)
  * @returns 200 - file of the image
@@ -115,7 +116,7 @@ router.get('/image', async (req, res) => {
 });
 
 
-/** 
+/**
  * create a editor figure
  * @param {*} figure boardId, x, y, width, height, type, backgroundColor, url, zIndex, isPinned, plainText, quillDelta
  * @returns 200 - properties of the created figure
@@ -145,7 +146,7 @@ router.post('/editor', validateFigure, async (req, res) => {
       else {
         yText.applyDelta(req.body.quillDelta);
       }
-      
+
       var u8intArray = Y.encodeStateAsUpdate(ydoc);
       await global.pgdb.storeUpdate(createdFigure._id, u8intArray);
     }
@@ -164,7 +165,7 @@ router.post('/editor', validateFigure, async (req, res) => {
 })
 
 
-/** 
+/**
  * create a editor (with id) figure
  * @param {*} figure id, boardId, x, y, width, height, type, backgroundColor, url, zIndex, isPinned, plainText, quillDelta
  * @returns 200 - properties of the created figure
@@ -194,7 +195,7 @@ router.post('/editorWithId', validateFigure, validateFigureId, async (req, res) 
       else {
         yText.applyDelta(req.body.quillDelta);
       }
-      
+
       var u8intArray = Y.encodeStateAsUpdate(ydoc);
       await global.pgdb.storeUpdate(createdFigure._id, u8intArray);
     }
@@ -213,7 +214,7 @@ router.post('/editorWithId', validateFigure, validateFigureId, async (req, res) 
 });
 
 
-/** 
+/**
  * create a preview figure
  * @param {*} figure boardId, x, y, width, height, type, backgroundColor, url, zIndex, isPinned
  * @returns 200 - properties of the created figure
@@ -225,10 +226,10 @@ router.post('/preview', validateFigure, async (req, res) => {
   var figureId = null;
   var previewInfoId = null;
 
-  try {    
+  try {
     // template from https://jaybarnes33.hashnode.dev/generating-link-previews-with-react-and-nodejs
     const { data } = await axios.get(req.body.figure.url);
-    const cheerioData = cheerio.load(data);
+    const cheerioData = cheerioLoad(data);
 
     var createdFigure = await FigureRepository.createFigure(req.body.figure);
     if (createdFigure === null) {
@@ -239,7 +240,7 @@ router.post('/preview', validateFigure, async (req, res) => {
 
     var previewInfo = await PreviewInfoRepository.createPreviewInfo(createdFigure._id, req.body.figure.url, cheerioData);
     previewInfoId = previewInfo._id;
-  
+
     FiguresWebSocket.sendMessage("create", createdFigure);
     res.status(200).json(createdFigure);
   }
@@ -256,7 +257,7 @@ router.post('/preview', validateFigure, async (req, res) => {
 });
 
 
-/** 
+/**
  * create a preview (with id) figure
  * @param {*} figure boardId, x, y, width, height, type, backgroundColor, url, zIndex, isPinned
  * @returns 200 - properties of the created figure
@@ -270,7 +271,7 @@ router.post('/previewWithId', validateFigure, validateFigureId, async (req, res)
 
   try {
     const { data } = await axios.get(req.body.figure.url);
-    const cheerioData = cheerio.load(data);
+    const cheerioData = cheerioLoad(data);
 
     var createdFigure = await FigureRepository.createFigureWithId(req.body.figure);
     if (createdFigure === null) {
@@ -281,7 +282,7 @@ router.post('/previewWithId', validateFigure, validateFigureId, async (req, res)
 
     var previewInfo = await PreviewInfoRepository.createPreviewInfo(createdFigure._id, req.body.figure.url, cheerioData);
     previewInfoId = previewInfo._id;
-  
+
     FiguresWebSocket.sendMessage("create", createdFigure);
     res.status(200).json(createdFigure);
   }
@@ -298,7 +299,7 @@ router.post('/previewWithId', validateFigure, validateFigureId, async (req, res)
 });
 
 
-/** 
+/**
  * create a image figure
  * @param {*} figure boardId, x, y, width, height, type, backgroundColor, url, zIndex, isPinned, isDefaultSize, base64
  * @returns 200 - properties of the created figure
@@ -470,7 +471,7 @@ router.post('/imageWithId', validateFigure, validateFigureId, async (req, res) =
 });
 
 
-/** 
+/**
  * update the position and size of a figure
  * @param {*} figure id, x, y, width, height
  * @returns 200 - properties of the updated figure
@@ -478,14 +479,14 @@ router.post('/imageWithId', validateFigure, validateFigureId, async (req, res) =
  *          500 - server error
  */
 router.put('/positionAndSize', validatePositionAndSize, async (req, res) => {
-  try {    
+  try {
     // only id, width, height, x and y is needed inside the figure
     var updatedFigure = await FigureRepository.updateFigurePositionAndSize(req.body.figure);
     if (updatedFigure === null) {
       res.status(202).send("figure not found");
       return;
     }
-    
+
     FiguresWebSocket.sendMessage("update", updatedFigure);
     res.status(200).json(updatedFigure);
   }
@@ -495,7 +496,7 @@ router.put('/positionAndSize', validatePositionAndSize, async (req, res) => {
 });
 
 
-/** 
+/**
  * update the background color of a figure
  * @param {*} figure id, background color
  * @returns 200 - properties of the updated figure
@@ -503,7 +504,7 @@ router.put('/positionAndSize', validatePositionAndSize, async (req, res) => {
  *          500 - server error
  */
 router.put('/backgroundColor', validateBackgroundColor, async (req, res) => {
-  try {    
+  try {
     var updatedFigure = await FigureRepository.updateFigureBackgroundColor(req.body.figure)
     if (updatedFigure === null) {
       res.status(202).send("figure not found");
@@ -519,7 +520,7 @@ router.put('/backgroundColor', validateBackgroundColor, async (req, res) => {
 });
 
 
-/** 
+/**
  * update the pin status of a figure
  * @param {*} figure id, isPinned (true / false)
  * @returns 200 - properties of the updated figure
@@ -527,7 +528,7 @@ router.put('/backgroundColor', validateBackgroundColor, async (req, res) => {
  *          500 - server error
  */
 router.put('/pin', async (req, res) => {
-  try {    
+  try {
 
     if (!(req.body.isPinned === true || req.body.isPinned === false)) {
       res.status(202).send("invalid pin status");
@@ -549,7 +550,7 @@ router.put('/pin', async (req, res) => {
 });
 
 
-/** 
+/**
  * update the layer of a figure
  * @param {*} figure id, action ("up" / "down")
  * @returns 200 - properties of the updated figure
@@ -557,7 +558,7 @@ router.put('/pin', async (req, res) => {
  *          500 - server error
  */
 router.put('/layer', async (req, res) => {
-  try {    
+  try {
 
     if (!(req.body.action === "up" || req.body.action === "down")) {
       res.status(202).send("invalid layer action");
@@ -571,7 +572,7 @@ router.put('/layer', async (req, res) => {
     else if (req.body.action === "down") {
       updatedFigure = await FigureRepository.layerDownFigure(req.body.id);
     }
-    
+
     if (updatedFigure === null) {
       res.status(202).send("figure not found");
       return;
@@ -586,7 +587,7 @@ router.put('/layer', async (req, res) => {
 });
 
 
-/** 
+/**
  * delete a figure
  * @param {*} figure id
  * @returns 200 - properties of the deleted figure
@@ -623,4 +624,4 @@ router.delete('/figure', async (req, res) => {
 });
 
 
-module.exports = router;
+export default router;

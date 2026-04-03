@@ -1,5 +1,5 @@
-const { check, validationResult } = require('express-validator');
-const Config = require('../config');
+import { check, validationResult } from 'express-validator';
+import Config from '../config.js';
 
 const validateFields = [
   check('figure.x')
@@ -27,4 +27,4 @@ const validateFields = [
   }
 ];
 
-module.exports = validateFields;
+export default validateFields;

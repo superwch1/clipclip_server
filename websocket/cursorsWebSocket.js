@@ -1,4 +1,4 @@
-const url = require('url');
+import { parse } from 'url';
 
 class CursorsWebSocket {
   static clients = new Set();
@@ -6,9 +6,9 @@ class CursorsWebSocket {
 
   static setupCursorConnection(ws, request) {
     // (this) is referred to the WebSocketServer not FiguresWebSocket so it cannot be used here
-    const parsedUrl = url.parse(request.url, true);
+    const parsedUrl = parse(request.url, true);
     const uuid = parsedUrl.query.uuid;
-    const isDesktop = parsedUrl.query.isDesktop; 
+    const isDesktop = parsedUrl.query.isDesktop;
     const boardId = parsedUrl.query.boardId;
     ws.boardId = boardId;
 
@@ -54,13 +54,13 @@ class CursorsWebSocket {
     }
     catch {}
   }
-  
+
 
   static startBroadcastCursorLocation() {
     setInterval(() => {
       this.clients.forEach((client) => {
         const cursorsArray = Array.from(this.cursorsMap.get(`${client.boardId}`), ([key, value]) => ({ key, value }));
-        client.send(JSON.stringify({cursors: cursorsArray}));      
+        client.send(JSON.stringify({cursors: cursorsArray}));
       });
     }, 100);
   }
@@ -80,6 +80,4 @@ class CursorsWebSocket {
 }
 
 
-module.exports = {
-  CursorsWebSocket: CursorsWebSocket
-};
+export { CursorsWebSocket };

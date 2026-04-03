@@ -1,9 +1,8 @@
-const { check, validationResult } = require('express-validator');
-const mongoose = require('mongoose');
+import { check, validationResult } from 'express-validator';
 
 const validateFields = [
   check('figure.id')
-    .custom(value => mongoose.Types.ObjectId.isValid(value.slice(7)))
+    .custom(value => /^[a-f0-9]{24}$/.test(value.slice(7)))
     .withMessage('invalid figure id'),
 
   (req, res, next) => {
@@ -15,4 +14,4 @@ const validateFields = [
   }
 ];
 
-module.exports = validateFields;
+export default validateFields;

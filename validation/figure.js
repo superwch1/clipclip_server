@@ -1,7 +1,7 @@
-const { check, validationResult } = require('express-validator');
-const Config = require('../config');
-const validateBackgroundColor = require('./figureBackgroundColor');
-const validatePositionAndSize = require('./figurePositionAndSize');
+import { check, validationResult } from 'express-validator';
+import Config from '../config.js';
+import validateBackgroundColor from './figureBackgroundColor.js';
+import validatePositionAndSize from './figurePositionAndSize.js';
 
 const validateFields = [
 
@@ -13,7 +13,7 @@ const validateFields = [
   check('figure.type')
     .custom(value => (value === "editor" || value === "preview" || value === "image"))
     .withMessage('invalid figure type'),
-  
+
   // reason for not using isURL() is because editor use empty url
   check('figure.url')
     .isString()
@@ -28,9 +28,9 @@ const validateFields = [
     .isBoolean()
     .withMessage('invalid figure pin status'),
 
-  validateBackgroundColor,
+  ...validateBackgroundColor,
 
-  validatePositionAndSize,
+  ...validatePositionAndSize,
 
   (req, res, next) => {
     const errors = validationResult(req);
@@ -41,4 +41,4 @@ const validateFields = [
   }
 ];
 
-module.exports = validateFields;
+export default validateFields;

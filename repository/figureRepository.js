@@ -1,6 +1,6 @@
-const pool = require('../db/pool.cjs');
-const Config = require('../config');
-const crypto = require('crypto');
+import pool from '../db/pool.js';
+import Config from '../config.js';
+import crypto from 'crypto';
 
 function rowToFigure(row) {
   if (!row) return null;
@@ -208,4 +208,4 @@ class FigureRepository {
   }
 }
 
-module.exports = FigureRepository;
+export default FigureRepository;

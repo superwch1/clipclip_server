@@ -1,4 +1,4 @@
-const pool = require('../db/pool.cjs');
+import pool from '../db/pool.js';
 
 
 class PreviewInfoRepository {
@@ -83,4 +83,4 @@ class PreviewInfoRepository {
   }
 }
 
-module.exports = PreviewInfoRepository;
+export default PreviewInfoRepository;

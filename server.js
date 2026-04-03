@@ -1,12 +1,24 @@
-const WebSocket = require('ws')
-const http = require('http')
-const { setPersistence, setupWSConnection } = require('./websocket/y-websocket/utils.cjs');
-const Y = require('yjs');
-const Config = require('./config');
-const YjsRepository = require('./repository/yjsRepository.cjs');
-const { PostgresqlPersistence } = require('y-postgresql');
-const pool = require('./db/pool.cjs');
+import { WebSocketServer } from 'ws';
+import http from 'http';
+import { fileURLToPath } from 'url';
+import path from 'path';
+import { createRequire } from 'module';
+import { setPersistence, setupWSConnection } from './websocket/y-websocket/utils.cjs';
 
+// Use createRequire so yjs is loaded via the CJS cache — same instance as utils.cjs
+const Y = createRequire(import.meta.url)('yjs');
+import Config from './config.js';
+import YjsRepository from './repository/yjsRepository.js';
+import { PostgresqlPersistence } from 'y-postgresql';
+import pool from './db/pool.js';
+import { FiguresWebSocket } from './websocket/figuresWebSocket.js';
+import { CursorsWebSocket } from './websocket/cursorsWebSocket.js';
+import express from 'express';
+import cors from 'cors';
+import fileUpload from 'express-fileupload';
+import figureApiRouter from './controllers/figureApi.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 async function main () {
 
@@ -14,16 +26,14 @@ async function main () {
 
   // configuration for y-websocket and y-mongodb-provider, websocket for figures and cursors
   // foundation is created with y-websocket then add y-mongodb-provider for database management
-  const wssYjs = new WebSocket.Server({ noServer: true })
+  const wssYjs = new WebSocketServer({ noServer: true })
   wssYjs.on('connection', setupWSConnection)
 
   // configuration for figure websocket
-  const { FiguresWebSocket } = require('./websocket/figuresWebSocket');
-  const wssFigure = new WebSocket.Server({ noServer: true })
+  const wssFigure = new WebSocketServer({ noServer: true })
   wssFigure.on('connection', FiguresWebSocket.setupFigureConnection);
 
-  const { CursorsWebSocket } = require('./websocket/cursorsWebSocket');
-  const wssCursor = new WebSocket.Server({ noServer: true })
+  const wssCursor = new WebSocketServer({ noServer: true })
   wssCursor.on('connection', CursorsWebSocket.setupCursorConnection);
 
   const pgdb = await PostgresqlPersistence.build(
@@ -55,7 +65,7 @@ async function main () {
       await pgdb.getStateVector(docName);
 
       // there will be 2 documents left in yjs-writing after using figuresWebSocket with deleteMany (unknown reason)
-      // after all connections are closed, remaining documents will be delete when it is not linked to figures 
+      // after all connections are closed, remaining documents will be delete when it is not linked to figures
       const figureRes = await pool.query('SELECT id FROM figures WHERE id = $1', [docName]);
       if (figureRes.rows.length === 0) {
         await YjsRepository.deleteAllWritings(docName);
@@ -97,25 +107,18 @@ async function main () {
 
 
   // configruation for express server
-  const express = require('express')
   const app = express();
 
-  const cors = require('cors');
   app.use(cors());
+  app.use(fileUpload());
 
-  const fileUploaded = require('express-fileupload');
-  app.use(fileUploaded());
-
-  const path = require('path');
   global.appDirectory = path.resolve(__dirname);
-
   app.use(express.static('views/public')); //get the static file from public directory for html files
 
   global.pgdb = pgdb;
 
   app.use(express.json({ limit: `${Config.imageMaxSize / 1000000}mb` })); // base64 need large size for uploading images
-  
-  const figureApiRouter = require('./controllers/figureApi');
+
   app.use('', figureApiRouter);
 
   server.on('request', app);

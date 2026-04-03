@@ -1,4 +1,4 @@
-const pool = require('../db/pool.cjs');
+import pool from '../db/pool.js';
 
 class YjsRepository {
 
@@ -11,4 +11,4 @@ class YjsRepository {
   }
 }
 
-module.exports = YjsRepository;
+export default YjsRepository;
