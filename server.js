@@ -51,10 +51,10 @@ async function main () {
 
     // This is called when all connections to the document are closed.
     writeState: async (docName, ydoc) => {
-      // flush document by merging recrods
-      await pgdb.flushDocument(docName);
+      // flush document by merging records (getStateVector flushes internally when outdated)
+      await pgdb.getStateVector(docName);
 
-      // there will be 2 documents left in yjs-writing after using figuresWebSocket with deleteMany (unknown reason) 
+      // there will be 2 documents left in yjs-writing after using figuresWebSocket with deleteMany (unknown reason)
       // after all connections are closed, remaining documents will be delete when it is not linked to figures 
       const figureRes = await pool.query('SELECT id FROM figures WHERE id = $1', [docName]);
       if (figureRes.rows.length === 0) {

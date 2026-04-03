@@ -22,3 +22,9 @@ CREATE TABLE preview_infos (
   author      TEXT,
   figure_id   VARCHAR(255) NOT NULL
 );
+
+CREATE TABLE images (
+  figure_id VARCHAR(255) PRIMARY KEY,
+  data      BYTEA        NOT NULL,
+  format    VARCHAR(20)  NOT NULL
+);

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const FigureRepository = require('../repository/figureRepository.cjs')
 const PreviewInfoRepository = require('../repository/previewInfoRepository.cjs')
+const ImageRepository = require('../repository/imageRepository.cjs')
 const YjsRepository = require('../repository/yjsRepository.cjs');
 const { FiguresWebSocket } = require('../websocket/figuresWebSocket');
 const path = require('path');
@@ -11,7 +12,6 @@ const Y = require('yjs');
 const sharp = require('sharp');
 const Config = require('../config')
 const convert = require('heic-convert')
-const fs = require('fs')
 
 const validateFigure = require('../validation/figure')
 const validateFigureId = require('../validation/figureId')
@@ -98,15 +98,16 @@ router.get("/preview", async (req, res) => {
  *          202 - no image is found on server (since iisnode only provide default message for 400)
  *          500 - server error
  */
-router.get('/image', (req, res) => {
+router.get('/image', async (req, res) => {
   try {
-    const imagePath = path.join(appDirectory, 'images', `${req.query.url}`);
-    if (fs.existsSync(imagePath)) {
-      res.status(200).sendFile(imagePath, (error) => {});
+    const figureId = req.query.url.replace(/\.[^.]+$/, '');
+    const image = await ImageRepository.readImage(figureId);
+    if (image) {
+      res.status(200).type(`image/${image.format}`).send(image.data);
     }
     else {
       res.status(202).send("figure not found");
-    }    
+    }
   }
   catch {
     res.sendStatus(500);
@@ -357,27 +358,25 @@ router.post('/image', validateFigure, async (req, res) => {
     figureId = createdFigure._id;
     figureUrl = `${createdFigure._id}.${metadata.format}`;
 
-    var filePath = path.join(appDirectory, 'images', `${createdFigure._id}.${metadata.format}`);
-    imageSavingResult = await sharp(buffer).toFile(filePath);
+    const processedBuffer = await sharp(buffer).toBuffer();
+    await ImageRepository.saveImage(createdFigure._id, processedBuffer, metadata.format);
+    imageSavingResult = true;
 
-    var updatedFigure = await FigureRepository.updateFigureUrl(createdFigure._id, `${createdFigure._id}.${metadata.format}`);
+    var updatedFigure = await FigureRepository.updateFigureUrl(createdFigure._id, figureUrl);
     if (updatedFigure === null) {
       res.status(202).send("invalid properties");
       return;
     }
 
     FiguresWebSocket.sendMessage("create", updatedFigure);
-    res.status(200).json(createdFigure);
+    res.status(200).json(updatedFigure);
   }
-  catch { 
+  catch {
     if (figureId !== null) {
       FigureRepository.deleteFigure(figureId);
     }
     if (imageSavingResult !== null && figureUrl !== null) {
-      fs.unlink(`./images/${figureUrl}`, (err) => {
-        // the error catch function need to be exist or function will throw error automatically
-        // it automatically return null - need to be checked
-      });
+      ImageRepository.deleteImage(figureId);
     }
 
     res.sendStatus(500);
@@ -385,7 +384,7 @@ router.post('/image', validateFigure, async (req, res) => {
 });
 
 
-/** 
+/**
  * create a image (with id) figure
  * @param {*} figure id, boardId, x, y, width, height, type, backgroundColor, url, zIndex, isPinned, isDefaultSize, base64
  * @returns 200 - properties of the created figure
@@ -445,27 +444,25 @@ router.post('/imageWithId', validateFigure, validateFigureId, async (req, res) =
     figureId = createdFigure._id;
     figureUrl = `${createdFigure._id}.${metadata.format}`;
 
-    var filePath = path.join(appDirectory, 'images', `${createdFigure._id}.${metadata.format}`);
-    imageSavingResult = await sharp(buffer).toFile(filePath);
+    const processedBuffer = await sharp(buffer).toBuffer();
+    await ImageRepository.saveImage(createdFigure._id, processedBuffer, metadata.format);
+    imageSavingResult = true;
 
-    var updatedFigure = await FigureRepository.updateFigureUrl(createdFigure._id, `${createdFigure._id}.${metadata.format}`);
+    var updatedFigure = await FigureRepository.updateFigureUrl(createdFigure._id, figureUrl);
     if (updatedFigure === null) {
       res.status(202).send("invalid properties");
       return;
     }
 
     FiguresWebSocket.sendMessage("create", updatedFigure);
-    res.status(200).json(createdFigure);
+    res.status(200).json(updatedFigure);
   }
-  catch { 
+  catch {
     if (figureId !== null) {
       FigureRepository.deleteFigure(figureId);
     }
     if (imageSavingResult !== null && figureUrl !== null) {
-      fs.unlink(`./images/${figureUrl}`, (err) => {
-        // the error catch function need to be exist or function will throw error automatically
-        // it automatically return null - need to be checked
-      });
+      ImageRepository.deleteImage(figureId);
     }
 
     res.sendStatus(500);
@@ -603,10 +600,7 @@ router.delete('/figure', async (req, res) => {
       await FigureRepository.deleteFigure(figure._id);
 
       if (figure.type === 'image') {
-        fs.unlink(`./images/${figure.url}`, (err) => {
-          // the error catch function need to be exist or function will throw error automatically
-          // it automatically return null - need to be checked
-        });
+        await ImageRepository.deleteImage(figure._id);
       }
       else if (figure.type === 'editor') {
         // server will delete the remaining 2 documents in yjs-writing when those connection is lost
