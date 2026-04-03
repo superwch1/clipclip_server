@@ -2,11 +2,8 @@ import { WebSocketServer } from 'ws';
 import http from 'http';
 import { fileURLToPath } from 'url';
 import path from 'path';
-import { createRequire } from 'module';
-import { setPersistence, setupWSConnection } from './websocket/y-websocket/utils.cjs';
-
-// Use createRequire so yjs is loaded via the CJS cache — same instance as utils.cjs
-const Y = createRequire(import.meta.url)('yjs');
+import { setPersistence, setupWSConnection } from './websocket/y-websocket/utils.js';
+import * as Y from 'yjs';
 import Config from './config.js';
 import YjsRepository from './repository/yjsRepository.js';
 import { PostgresqlPersistence } from 'y-postgresql';
