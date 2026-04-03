@@ -1,3 +1,5 @@
+import http from 'http';
+import * as number from 'lib0/number';
 import * as Y from 'yjs';
 import * as syncProtocol from 'y-protocols/sync';
 import * as awarenessProtocol from 'y-protocols/awareness';
@@ -5,7 +7,84 @@ import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
 import * as map from 'lib0/map';
 import debounce from 'lodash.debounce';
-import { callbackHandler, isCallbackSet } from './callback.js';
+
+
+const CALLBACK_URL = process.env.CALLBACK_URL ? new URL(process.env.CALLBACK_URL) : null;
+const CALLBACK_TIMEOUT = number.parseInt(process.env.CALLBACK_TIMEOUT || '5000');
+const CALLBACK_OBJECTS = process.env.CALLBACK_OBJECTS ? JSON.parse(process.env.CALLBACK_OBJECTS) : {};
+
+export const isCallbackSet = !!CALLBACK_URL;
+
+/**
+ * @param {Uint8Array} update
+ * @param {any} origin
+ * @param {any} doc
+ */
+export const callbackHandler = (update, origin, doc) => {
+  const room = doc.name;
+  const dataToSend = {
+    room,
+    data: {}
+  };
+  const sharedObjectList = Object.keys(CALLBACK_OBJECTS);
+  sharedObjectList.forEach(sharedObjectName => {
+    const sharedObjectType = CALLBACK_OBJECTS[sharedObjectName];
+    dataToSend.data[sharedObjectName] = {
+      type: sharedObjectType,
+      content: getContent(sharedObjectName, sharedObjectType, doc).toJSON()
+    };
+  });
+  CALLBACK_URL && callbackRequest(CALLBACK_URL, CALLBACK_TIMEOUT, dataToSend);
+};
+
+/**
+ * @param {URL} url
+ * @param {number} timeout
+ * @param {Object} data
+ */
+const callbackRequest = (url, timeout, data) => {
+  data = JSON.stringify(data);
+  const options = {
+    hostname: url.hostname,
+    port: url.port,
+    path: url.pathname,
+    timeout,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': data.length
+    }
+  };
+  const req = http.request(options);
+  req.on('timeout', () => {
+    console.warn('Callback request timed out.');
+    req.abort();
+  });
+  req.on('error', (e) => {
+    console.error('Callback request error.', e);
+    req.abort();
+  });
+  req.write(data);
+  req.end();
+};
+
+/**
+ * @param {string} objName
+ * @param {string} objType
+ * @param {any} doc
+ */
+const getContent = (objName, objType, doc) => {
+  switch (objType) {
+    case 'Array': return doc.getArray(objName);
+    case 'Map': return doc.getMap(objName);
+    case 'Text': return doc.getText(objName);
+    case 'XmlFragment': return doc.getXmlFragment(objName);
+    case 'XmlElement': return doc.getXmlElement(objName);
+    default: return {};
+  }
+};
+
+
 
 const CALLBACK_DEBOUNCE_WAIT = parseInt(process.env.CALLBACK_DEBOUNCE_WAIT || '2000');
 const CALLBACK_DEBOUNCE_MAXWAIT = parseInt(process.env.CALLBACK_DEBOUNCE_MAXWAIT || '10000');

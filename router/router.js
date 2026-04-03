@@ -5,16 +5,13 @@ import axios from 'axios';
 import * as Y from 'yjs';
 import sharp from 'sharp';
 import convert from 'heic-convert';
-import FigureRepository from '../repository/figureRepository.js';
-import PreviewInfoRepository from '../repository/previewInfoRepository.js';
-import ImageRepository from '../repository/imageRepository.js';
-import YjsRepository from '../repository/yjsRepository.js';
-import { FiguresWebSocket } from '../websocket/figuresWebSocket.js';
+import { createFigure, createFigureWithId, readAllFigures, readFigure, updateFigureUrl, updateFigurePositionAndSize, updateFigureBackgroundColor, deleteFigure, layerUpFigure, layerDownFigure, updatePinStatusFigure } from '../repository/figure-repository.js';
+import { createPreviewInfo, readPreviewInfo, deletePreviewInfoWithFigureId } from '../repository/preview-info-repository.js';
+import { saveImage, readImage, deleteImage } from '../repository/image-repository.js';
+import { deleteAllWritings } from '../repository/yjs-repository.js';
+import { sendMessage } from '../websocket/figures-websocket.js';
 import Config from '../config.js';
-import validateFigure from '../validation/figure.js';
-import validateFigureId from '../validation/figureId.js';
-import validateBackgroundColor from '../validation/figureBackgroundColor.js';
-import validatePositionAndSize from '../validation/figurePositionAndSize.js';
+import { validateFigure, validateFigureId, validateBackgroundColor, validatePositionAndSize } from '../validation/validation.js';
 
 const router = express.Router();
 
@@ -35,7 +32,7 @@ router.get('/board/*', (req, res) => {
 
   // redirect the path it if consist letter rather than 0-9, a-z and -_ symbol
   if (/^[a-z0-9_-]*$/.test(req.path.slice(7))) {
-    res.sendFile(path.resolve(global.appDirectory, 'views/index.html'));
+    res.sendFile(path.resolve(global.appDirectory, 'page/index.html'));
   }
 
   // replace invalid letter to '' and capital letter to lower case letter
@@ -54,7 +51,7 @@ router.get('/board/*', (req, res) => {
  */
 router.get('/figures', async (req, res) => {
   try {
-    var figures = await FigureRepository.readAllFigures(req.query.boardId);
+    var figures = await readAllFigures(req.query.boardId);
     if (figures) {
       res.status(200).json(figures);
     }
@@ -77,7 +74,7 @@ router.get('/figures', async (req, res) => {
  */
 router.get("/preview", async (req, res) => {
   try {
-    var previewInfo = await PreviewInfoRepository.readPreviewInfo(req.query.id);
+    var previewInfo = await readPreviewInfo(req.query.id);
 
     if (previewInfo) {
       res.status(200).json(previewInfo);
@@ -86,7 +83,7 @@ router.get("/preview", async (req, res) => {
       res.status(202).send("figure not found");
     }
   } catch (error) {
-    res.status(202).send("figure not found");
+    res.status(500).send("figure not found");
   }
 });
 
@@ -101,7 +98,7 @@ router.get("/preview", async (req, res) => {
 router.get('/image', async (req, res) => {
   try {
     const figureId = req.query.url.replace(/\.[^.]+$/, '');
-    const image = await ImageRepository.readImage(figureId);
+    const image = await readImage(figureId);
     if (image) {
       res.status(200).type(`image/${image.format}`).send(image.data);
     }
@@ -127,7 +124,7 @@ router.post('/editor', validateFigure, async (req, res) => {
   var figureId = null;
 
   try {
-    var createdFigure = await FigureRepository.createFigure(req.body.figure);
+    var createdFigure = await createFigure(req.body.figure);
     if (createdFigure === null) {
       res.status(202).send("invalid properties");
       return;
@@ -150,13 +147,13 @@ router.post('/editor', validateFigure, async (req, res) => {
       await global.pgdb.storeUpdate(createdFigure._id, u8intArray);
     }
 
-    FiguresWebSocket.sendMessage("create", createdFigure);
+    sendMessage("create", createdFigure);
     res.status(200).json(createdFigure);
   }
   catch {
     if (figureId !== null) {
-      FigureRepository.deleteFigure(figureId);
-      await YjsRepository.deleteAllWritings(figureId);
+      deleteFigure(figureId);
+      await deleteAllWritings(figureId);
     }
 
     res.sendStatus(500);
@@ -176,7 +173,7 @@ router.post('/editorWithId', validateFigure, validateFigureId, async (req, res) 
   var figureId = null;
 
   try {
-    var createdFigure = await FigureRepository.createFigureWithId(req.body.figure);
+    var createdFigure = await createFigureWithId(req.body.figure);
     if (createdFigure === null) {
       res.status(202).send("invalid properties");
       return;
@@ -199,13 +196,13 @@ router.post('/editorWithId', validateFigure, validateFigureId, async (req, res) 
       await global.pgdb.storeUpdate(createdFigure._id, u8intArray);
     }
 
-    FiguresWebSocket.sendMessage("create", createdFigure);
+    sendMessage("create", createdFigure);
     res.status(200).json(createdFigure);
   }
   catch {
     if (figureId !== null) {
-      FigureRepository.deleteFigure(figureId);
-      await YjsRepository.deleteAllWritings(figureId);
+      deleteFigure(figureId);
+      await deleteAllWritings(figureId);
     }
 
     res.sendStatus(500);
@@ -230,25 +227,25 @@ router.post('/preview', validateFigure, async (req, res) => {
     const { data } = await axios.get(req.body.figure.url);
     const cheerioData = cheerioLoad(data);
 
-    var createdFigure = await FigureRepository.createFigure(req.body.figure);
+    var createdFigure = await createFigure(req.body.figure);
     if (createdFigure === null) {
       res.status(202).send("invalid properties");
       return;
     }
     figureId = createdFigure._id;
 
-    var previewInfo = await PreviewInfoRepository.createPreviewInfo(createdFigure._id, req.body.figure.url, cheerioData);
+    var previewInfo = await createPreviewInfo(createdFigure._id, req.body.figure.url, cheerioData);
     previewInfoId = previewInfo._id;
 
-    FiguresWebSocket.sendMessage("create", createdFigure);
+    sendMessage("create", createdFigure);
     res.status(200).json(createdFigure);
   }
   catch {
     if (figureId !== null) {
-      FigureRepository.deleteFigure(figureId);
+      deleteFigure(figureId);
     }
     if (previewInfoId !== null) {
-      PreviewInfoRepository.deletePreviewInfoWithFigureId(figureId);
+      deletePreviewInfoWithFigureId(figureId);
     }
 
     res.sendStatus(500);
@@ -272,25 +269,25 @@ router.post('/previewWithId', validateFigure, validateFigureId, async (req, res)
     const { data } = await axios.get(req.body.figure.url);
     const cheerioData = cheerioLoad(data);
 
-    var createdFigure = await FigureRepository.createFigureWithId(req.body.figure);
+    var createdFigure = await createFigureWithId(req.body.figure);
     if (createdFigure === null) {
       res.status(202).send("invalid properties");
       return;
     }
     figureId = createdFigure._id;
 
-    var previewInfo = await PreviewInfoRepository.createPreviewInfo(createdFigure._id, req.body.figure.url, cheerioData);
+    var previewInfo = await createPreviewInfo(createdFigure._id, req.body.figure.url, cheerioData);
     previewInfoId = previewInfo._id;
 
-    FiguresWebSocket.sendMessage("create", createdFigure);
+    sendMessage("create", createdFigure);
     res.status(200).json(createdFigure);
   }
   catch {
     if (figureId !== null) {
-      FigureRepository.deleteFigure(figureId);
+      deleteFigure(figureId);
     }
     if (previewInfoId !== null) {
-      PreviewInfoRepository.deletePreviewInfoWithFigureId(figureId);
+      deletePreviewInfoWithFigureId(figureId);
     }
 
     res.sendStatus(500);
@@ -350,7 +347,7 @@ router.post('/image', validateFigure, async (req, res) => {
       metadata = await sharp(buffer).metadata();
     }
 
-    var createdFigure = await FigureRepository.createFigure(figure);
+    var createdFigure = await createFigure(figure);
     if (createdFigure === null) {
       res.status(202).send("invalid properties");
       return;
@@ -359,24 +356,24 @@ router.post('/image', validateFigure, async (req, res) => {
     figureUrl = `${createdFigure._id}.${metadata.format}`;
 
     const processedBuffer = await sharp(buffer).toBuffer();
-    await ImageRepository.saveImage(createdFigure._id, processedBuffer, metadata.format);
+    await saveImage(createdFigure._id, processedBuffer, metadata.format);
     imageSavingResult = true;
 
-    var updatedFigure = await FigureRepository.updateFigureUrl(createdFigure._id, figureUrl);
+    var updatedFigure = await updateFigureUrl(createdFigure._id, figureUrl);
     if (updatedFigure === null) {
       res.status(202).send("invalid properties");
       return;
     }
 
-    FiguresWebSocket.sendMessage("create", updatedFigure);
+    sendMessage("create", updatedFigure);
     res.status(200).json(updatedFigure);
   }
   catch {
     if (figureId !== null) {
-      FigureRepository.deleteFigure(figureId);
+      deleteFigure(figureId);
     }
     if (imageSavingResult !== null && figureUrl !== null) {
-      ImageRepository.deleteImage(figureId);
+      deleteImage(figureId);
     }
 
     res.sendStatus(500);
@@ -436,7 +433,7 @@ router.post('/imageWithId', validateFigure, validateFigureId, async (req, res) =
       metadata = await sharp(buffer).metadata();
     }
 
-    var createdFigure = await FigureRepository.createFigureWithId(figure);
+    var createdFigure = await createFigureWithId(figure);
     if (createdFigure === null) {
       res.status(202).send("invalid properties");
       return;
@@ -445,24 +442,24 @@ router.post('/imageWithId', validateFigure, validateFigureId, async (req, res) =
     figureUrl = `${createdFigure._id}.${metadata.format}`;
 
     const processedBuffer = await sharp(buffer).toBuffer();
-    await ImageRepository.saveImage(createdFigure._id, processedBuffer, metadata.format);
+    await saveImage(createdFigure._id, processedBuffer, metadata.format);
     imageSavingResult = true;
 
-    var updatedFigure = await FigureRepository.updateFigureUrl(createdFigure._id, figureUrl);
+    var updatedFigure = await updateFigureUrl(createdFigure._id, figureUrl);
     if (updatedFigure === null) {
       res.status(202).send("invalid properties");
       return;
     }
 
-    FiguresWebSocket.sendMessage("create", updatedFigure);
+    sendMessage("create", updatedFigure);
     res.status(200).json(updatedFigure);
   }
   catch {
     if (figureId !== null) {
-      FigureRepository.deleteFigure(figureId);
+      deleteFigure(figureId);
     }
     if (imageSavingResult !== null && figureUrl !== null) {
-      ImageRepository.deleteImage(figureId);
+      deleteImage(figureId);
     }
 
     res.sendStatus(500);
@@ -480,13 +477,13 @@ router.post('/imageWithId', validateFigure, validateFigureId, async (req, res) =
 router.put('/positionAndSize', validatePositionAndSize, async (req, res) => {
   try {
     // only id, width, height, x and y is needed inside the figure
-    var updatedFigure = await FigureRepository.updateFigurePositionAndSize(req.body.figure);
+    var updatedFigure = await updateFigurePositionAndSize(req.body.figure);
     if (updatedFigure === null) {
       res.status(202).send("figure not found");
       return;
     }
 
-    FiguresWebSocket.sendMessage("update", updatedFigure);
+    sendMessage("update", updatedFigure);
     res.status(200).json(updatedFigure);
   }
   catch {
@@ -504,13 +501,13 @@ router.put('/positionAndSize', validatePositionAndSize, async (req, res) => {
  */
 router.put('/backgroundColor', validateBackgroundColor, async (req, res) => {
   try {
-    var updatedFigure = await FigureRepository.updateFigureBackgroundColor(req.body.figure)
+    var updatedFigure = await updateFigureBackgroundColor(req.body.figure)
     if (updatedFigure === null) {
       res.status(202).send("figure not found");
       return;
     }
 
-    FiguresWebSocket.sendMessage("update", updatedFigure);
+    sendMessage("update", updatedFigure);
     res.status(200).json(updatedFigure);
   }
   catch {
@@ -534,13 +531,13 @@ router.put('/pin', async (req, res) => {
       return;
     }
 
-    var updatedFigure = await FigureRepository.updatePinStatusFigure(req.body.id, req.body.isPinned);
+    var updatedFigure = await updatePinStatusFigure(req.body.id, req.body.isPinned);
     if (updatedFigure === null) {
       res.status(202).send("figure not found");
       return;
     }
 
-    FiguresWebSocket.sendMessage("update", updatedFigure);
+    sendMessage("update", updatedFigure);
     res.status(200).json(updatedFigure);
   }
   catch {
@@ -566,10 +563,10 @@ router.put('/layer', async (req, res) => {
 
     var updatedFigure;
     if (req.body.action === "up"){
-      updatedFigure = await FigureRepository.layerUpFigure(req.body.id);
+      updatedFigure = await layerUpFigure(req.body.id);
     }
     else if (req.body.action === "down") {
-      updatedFigure = await FigureRepository.layerDownFigure(req.body.id);
+      updatedFigure = await layerDownFigure(req.body.id);
     }
 
     if (updatedFigure === null) {
@@ -577,7 +574,7 @@ router.put('/layer', async (req, res) => {
       return;
     }
 
-    FiguresWebSocket.sendMessage("update", updatedFigure);
+    sendMessage("update", updatedFigure);
     res.status(200).json(updatedFigure);
   }
   catch {
@@ -595,23 +592,23 @@ router.put('/layer', async (req, res) => {
  */
 router.delete('/figure', async (req, res) => {
   try {
-    var figure = await FigureRepository.readFigure(req.body.id);
+    var figure = await readFigure(req.body.id);
     if (figure) {
-      await FigureRepository.deleteFigure(figure._id);
+      await deleteFigure(figure._id);
 
       if (figure.type === 'image') {
-        await ImageRepository.deleteImage(figure._id);
+        await deleteImage(figure._id);
       }
       else if (figure.type === 'editor') {
         // server will delete the remaining 2 documents in yjs-writing when those connection is lost
         // the procedure of cleaning will be handled in server.js
-        await YjsRepository.deleteAllWritings(figure._id);
+        await deleteAllWritings(figure._id);
       }
       else if (figure.type === 'preview') {
-        await PreviewInfoRepository.deletePreviewInfoWithFigureId(figure._id);
+        await deletePreviewInfoWithFigureId(figure._id);
       }
 
-      FiguresWebSocket.sendMessage("delete", figure);
+      sendMessage("delete", figure);
       res.status(200).json(figure);
       return;
     }
